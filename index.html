@@ -563,7 +563,7 @@
     <div class="field">
       <label>加入码</label>
       <input type="text" id="join-code" placeholder="输入群聊加入码" maxlength="20">
-      <div class="field-hint">向群主索取加入码</div>
+      <div class="field-hint">向群主索取加入码（必须由群主先创建该群聊）</div>
     </div>
     <div class="field">
       <label>你的昵称</label>
@@ -1668,6 +1668,12 @@ function bindEvents() {
   document.getElementById('join-confirm').addEventListener('click', () => {
     const code = document.getElementById('join-code').value.trim().toUpperCase();
     if (!code) { toast('请输入加入码'); return; }
+    // Validate: code must exist in the global group registry
+    const reg = loadGroupRegistry();
+    if (!reg[code]) {
+      toast('加入码无效，该群聊不存在');
+      return;
+    }
     document.getElementById('join-modal').classList.remove('show');
     joinGroup(code);
   });
