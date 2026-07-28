@@ -464,6 +464,20 @@
     color: var(--muted);
     font-size: 12px;
   }
+
+  /* Remember-me checkbox */
+  .remember-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: -4px 0 14px;
+    font-size: 13px;
+    color: var(--muted);
+    cursor: pointer;
+    user-select: none;
+  }
+  .remember-row input { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
+  .remember-row:hover span { color: var(--text); }
   .row-actions { display: flex; gap: 6px; }
   .mini-btn {
     padding: 5px 9px;
@@ -606,6 +620,10 @@
       <label>密码</label>
       <input type="password" id="auth-pass" placeholder="密码" maxlength="40" autocomplete="off">
     </div>
+    <label class="remember-row">
+      <input type="checkbox" id="auth-remember" checked>
+      <span>记住我（下次自动登录）</span>
+    </label>
     <div class="field" id="reg-invite-field">
       <label>邀请码</label>
       <input type="text" id="auth-invite" placeholder="请输入邀请码" maxlength="20">
@@ -829,11 +847,18 @@ function registerGroup(g) {
   }
 }
 function getSession() {
-  try { return localStorage.getItem(SESSION_KEY) || ''; } catch(e) { return ''; }
+  try {
+    return localStorage.getItem(SESSION_KEY)
+      || sessionStorage.getItem(SESSION_KEY) || '';
+  } catch(e) { return ''; }
 }
-function setSession(user) {
-  if (user) localStorage.setItem(SESSION_KEY, user);
-  else localStorage.removeItem(SESSION_KEY);
+function setSession(user, remember) {
+  // Always clear both first
+  try { localStorage.removeItem(SESSION_KEY); } catch(e) {}
+  try { sessionStorage.removeItem(SESSION_KEY); } catch(e) {}
+  if (!user) return;
+  if (remember) localStorage.setItem(SESSION_KEY, user);
+  else sessionStorage.setItem(SESSION_KEY, user);
 }
 // Simple non-cryptographic hash (demo only; not for real security)
 function hashPass(s) {
@@ -893,7 +918,7 @@ function handleAuthSubmit() {
     if (accts[user]) { err.textContent = '该用户名已被注册'; return; }
     accts[user] = { nick, pass: hashPass(pass), role: 'user', createdAt: Date.now() };
     saveAccounts(accts);
-    setSession(user);
+    setSession(user, document.getElementById('auth-remember').checked);
     state.nickname = nick;
     saveState();
     hideAuthModal();
@@ -903,7 +928,7 @@ function handleAuthSubmit() {
     const acct = accts[user];
     if (!acct) { err.textContent = '用户不存在'; return; }
     if (acct.pass !== hashPass(pass)) { err.textContent = '密码错误'; return; }
-    setSession(user);
+    setSession(user, document.getElementById('auth-remember').checked);
     state.nickname = acct.nick;
     saveState();
     hideAuthModal();
