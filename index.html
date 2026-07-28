@@ -258,16 +258,41 @@
     height: 60px;
     border-bottom: 1px solid var(--border);
     display: flex; align-items: center;
-    padding: 0 20px; gap: 12px;
+    padding: 0 12px 0 6px; gap: 8px;
     background: rgba(255,255,255,0.10);
     backdrop-filter: blur(4px) saturate(180%);
     -webkit-backdrop-filter: blur(4px) saturate(180%);
     box-shadow: inset 0 -1px 0 rgba(255,255,255,0.4), 0 2px 12px rgba(31,38,135,0.06);
+    position: relative;
   }
-  .chat-header .group-avatar { width: 38px; height: 38px; font-size: 19px; }
-  .chat-header .info { flex: 1; }
-  .chat-header .name { font-size: 15px; font-weight: 600; }
-  .chat-header .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .chat-header::after {
+    content: '';
+    position: absolute;
+    left: 14px; right: 14px; bottom: -1px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
+    pointer-events: none;
+  }
+  .chat-header .back-btn {
+    width: 40px; height: 40px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: all .2s;
+    flex-shrink: 0;
+    color: var(--text);
+    background: transparent;
+  }
+  .chat-header .back-btn:hover {
+    background: rgba(255,255,255,0.22);
+    transform: translateX(-1px);
+  }
+  body.dark-theme .chat-header .back-btn:hover { background: rgba(255,255,255,0.10); }
+  .chat-header .back-btn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+  .chat-header .group-avatar { width: 38px; height: 38px; font-size: 19px; flex-shrink: 0; }
+  .chat-header .info { flex: 1; min-width: 0; }
+  .chat-header .name { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chat-header .sub { font-size: 11px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .conn-dot {
     width: 9px; height: 9px;
     border-radius: 50%;
@@ -1830,18 +1855,37 @@ function openChat(id) {
   }
 }
 
+function backToGroupList() {
+  activeGroupId = null;
+  let area = document.getElementById('chat-area');
+  if (!area) return;
+  area.innerHTML = `
+    <div id="welcome-screen">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <h2>选择一个群聊开始聊天</h2>
+      <p>点击左上角 + 创建或加入群聊</p>
+    </div>`;
+  // On mobile: sidebar should be visible (chat hidden away is fine)
+  const sidebar = document.getElementById('sidebar');
+  if (sidebar) sidebar.classList.remove('hidden');
+  renderGroupList();
+}
+
 function renderChatHeader(g) {
   let area = document.getElementById('chat-area');
   // rebuild header + messages + composer if welcome screen present
   if (document.getElementById('welcome-screen')) {
     area.innerHTML = `
       <div class="chat-header">
+        <button type="button" class="back-btn" id="back-btn" title="返回">
+          <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
         <div class="group-avatar">${g.icon}</div>
         <div class="info">
           <div class="name">${escapeHtml(g.name)}</div>
           <div class="sub">加入码：<span id="code-display">${escapeHtml(g.code)}</span></div>
         </div>
-        <div class="conn-dot ${client&&client.connected?'':'off'}"></div>
+        <div class="conn-dot ${client&&client.connected?'':'off'}" title="${client&&client.connected?'已连接':'未连接'}"></div>
       </div>
       <div id="messages"></div>
       <div class="composer">
@@ -1851,11 +1895,32 @@ function renderChatHeader(g) {
         </button>
       </div>`;
     bindComposer();
+    // Bind back button
+    const backBtn = document.getElementById('back-btn');
+    if (backBtn) backBtn.addEventListener('click', backToGroupList);
   } else {
     const hdr = area.querySelector('.chat-header');
+    const backBtn = hdr.querySelector('.back-btn');
+    if (!backBtn) {
+      // Upgrade: insert back button at the start of header
+      const newBtn = document.createElement('button');
+      newBtn.type = 'button';
+      newBtn.className = 'back-btn';
+      newBtn.id = 'back-btn';
+      newBtn.title = '返回';
+      newBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>';
+      newBtn.addEventListener('click', backToGroupList);
+      hdr.insertBefore(newBtn, hdr.firstChild);
+    }
     hdr.querySelector('.group-avatar').textContent = g.icon;
     hdr.querySelector('.name').textContent = g.name;
     document.getElementById('code-display').textContent = g.code;
+    // Update conn dot if exists
+    const dot = hdr.querySelector('.conn-dot');
+    if (dot) {
+      dot.classList.toggle('off', !(client && client.connected));
+      dot.title = client && client.connected ? '已连接' : '未连接';
+    }
   }
 }
 
