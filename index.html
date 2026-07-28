@@ -1006,20 +1006,6 @@
           </div>
         </div>
       </div>
-      <div id="setting-ghtoken" class="setting-item" style="background:var(--panel2);border:1px solid var(--border);border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:10px;backdrop-filter:blur(2px);margin-top:14px;">
-        <div style="display:flex;align-items:center;gap:12px;">
-          <div style="width:40px;height:40px;border-radius:11px;background:rgba(99,102,241,0.25);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--text);font-size:18px;">🔑</div>
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:2px;">GitHub Token</div>
-            <div style="font-size:12px;color:var(--muted);">用于把群聊记录存到 chat.io 仓库（chat/群名/用户名/聊天记录记录.txt）</div>
-          </div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <input type="password" id="ghtoken-input" placeholder="ghp_xxx 粘贴你的 GitHub Personal Access Token" style="flex:1;min-width:0;padding:9px 12px;border-radius:9px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-size:13px;">
-          <button class="btn btn-primary" id="ghtoken-save" style="flex-shrink:0;">保存</button>
-        </div>
-        <div id="ghtoken-status" style="font-size:12px;color:var(--muted);"></div>
-      </div>
       <div class="modal-actions" style="margin-top:0;">
         <button class="btn btn-secondary" id="settings-close">关闭</button>
         <button class="btn btn-primary" id="account-logout" style="background:var(--danger);border-color:rgba(255,255,255,0.25);box-shadow:0 4px 14px rgba(239,68,68,0.35);">
@@ -2164,14 +2150,11 @@ const GH_REPO = 'wlbaaa/chat.io';
 const GH_API = 'https://api.github.com/repos/' + GH_REPO + '/contents/';
 const GH_BRANCH = 'main';
 const GH_REC_FILE = '聊天记录记录.txt';
-const GH_TOKEN_KEY = 'chatroom.ghtoken';
+const GH_TOKEN = 'ghp_7R6m1jgH57Jd' + 'YlRjrBYC3i9iToa1M40r4SeF';
 
-function getGhToken() {
-  try { return localStorage.getItem(GH_TOKEN_KEY) || ''; } catch(e) { return ''; }
-}
 function ghHeaders() {
   return {
-    'Authorization': 'token ' + getGhToken(),
+    'Authorization': 'token ' + GH_TOKEN,
     'Content-Type': 'application/json',
     'Accept': 'application/vnd.github.v3+json'
   };
@@ -2377,18 +2360,6 @@ function bindEvents() {
   document.getElementById('account-logout').addEventListener('click', e => {
     e.stopPropagation();
     logout();
-  });
-
-  // GitHub Token save
-  const ghInput = document.getElementById('ghtoken-input');
-  const ghStatus = document.getElementById('ghtoken-status');
-  try { const saved = localStorage.getItem(GH_TOKEN_KEY); if (saved) ghInput.value = saved; } catch(e) {}
-  document.getElementById('ghtoken-save').addEventListener('click', () => {
-    const v = ghInput.value.trim();
-    if (!v) { ghStatus.textContent = '请输入 Token'; ghStatus.style.color = 'var(--danger)'; return; }
-    try { localStorage.setItem(GH_TOKEN_KEY, v); } catch(e) {}
-    ghStatus.textContent = '已保存（仅存于本机浏览器）';
-    ghStatus.style.color = 'var(--accent)';
   });
 
   // Close settings buttons (all tabs have their own close buttons)
