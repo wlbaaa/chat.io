@@ -511,6 +511,7 @@ function migrateLegacyStateIfNeeded(user) {
   if (!legacyRaw) return;
   try {
     localStorage.setItem(userKey, legacyRaw);
+    localStorage.removeItem(legacyKey);
   } catch(e) {}
 }
 
