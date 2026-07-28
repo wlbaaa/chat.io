@@ -659,74 +659,7 @@
   .role-tag.admin { background: rgba(124,140,255,0.30); color: #c5d0ff; }
   .role-tag.user { background: rgba(255,255,255,0.20); color: var(--muted); }
 
-  /* Login hint */
-  .login-hint {
-    background: rgba(255,255,255,0.20);
-    backdrop-filter: blur(2px);
-    -webkit-backdrop-filter: blur(2px);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 12px 14px;
-    margin-bottom: 14px;
-    font-size: 13px;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.55);
-  }
-  .login-hint .hint-title {
-    font-weight: 600;
-    margin-bottom: 8px;
-    color: var(--text);
-  }
-  .login-hint .hint-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-bottom: 4px;
-    color: var(--muted);
-  }
-  .login-hint code {
-    background: rgba(255,255,255,0.25);
-    color: #a0b0ff;
-    border: 1px solid var(--border);
-    padding: 2px 8px;
-    border-radius: 6px;
-    font-family: ui-monospace, monospace;
-  }
-  .login-hint .hint-fill {
-    margin-top: 8px;
-    width: 100%;
-    padding: 9px;
-    border-radius: 10px;
-    background: var(--accent);
-    color: #fff;
-    font-size: 13px;
-    font-weight: 500;
-    transition: all .2s;
-    border: 1px solid rgba(255,255,255,0.25);
-    box-shadow: 0 4px 12px rgba(99,102,241,0.35), inset 0 1px 0 rgba(255,255,255,0.4);
-  }
-  .login-hint .hint-fill:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(99,102,241,0.45); }
-  .login-hint .hint-divider {
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px dashed var(--border);
-    text-align: center;
-    color: var(--muted);
-    font-size: 12px;
-  }
 
-  /* Remember-me checkbox */
-  .remember-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: -4px 0 14px;
-    font-size: 13px;
-    color: var(--muted);
-    cursor: pointer;
-    user-select: none;
-  }
-  .remember-row input { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
-  .remember-row:hover span { color: var(--text); }
   .row-actions { display: flex; gap: 6px; }
   .mini-btn {
     padding: 5px 9px;
@@ -856,44 +789,6 @@
   </div>
 </div>
 
-<!-- Auth Modal (Register / Login) -->
-<div class="modal-overlay" id="auth-modal">
-  <div class="modal">
-    <h2 id="auth-title">注册账号</h2>
-    <div class="field" id="reg-nick-field">
-      <label>昵称</label>
-      <input type="text" id="auth-nick" placeholder="聊天中显示的昵称" maxlength="20">
-    </div>
-    <div class="field">
-      <label>用户名</label>
-      <input type="text" id="auth-user" placeholder="登录用户名" maxlength="20" autocomplete="off">
-    </div>
-    <div class="field">
-      <label>密码</label>
-      <input type="password" id="auth-pass" placeholder="密码" maxlength="40" autocomplete="off">
-    </div>
-    <label class="remember-row">
-      <input type="checkbox" id="auth-remember" checked>
-      <span>记住我（下次自动登录）</span>
-    </label>
-    <div class="field" id="reg-invite-field">
-      <label>邀请码</label>
-      <input type="text" id="auth-invite" placeholder="请输入邀请码" maxlength="20">
-    </div>
-    <div class="field-hint" id="auth-error" style="color:var(--danger);margin-bottom:12px;min-height:14px;"></div>
-    <div id="login-hint" class="login-hint" style="display:none;">
-      <div class="hint-title">默认管理员账号</div>
-      <div class="hint-row"><span>用户名：</span><code>admin</code></div>
-      <div class="hint-row"><span>密码：</span><code>admin123</code></div>
-      <button type="button" class="hint-fill" id="fill-admin-btn">一键填充管理员账号</button>
-      <div class="hint-divider">或使用你自己注册的普通账号登录</div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-secondary" id="auth-toggle">已有账号？登录</button>
-      <button class="btn btn-primary" id="auth-submit">注册</button>
-    </div>
-  </div>
-</div>
 
 <!-- Admin Panel Modal -->
 <div class="modal-overlay" id="admin-modal">
@@ -1022,7 +917,6 @@ let activeGroupId = null;
 let selectedIcon = ICONS[0];
 let codeMode = 'random';
 let pendingCreateAction = null;
-let authMode = 'register'; // 'register' | 'login'
 
 /* ===================== Persistence ===================== */
 function getUserStorageKey() {
@@ -1149,70 +1043,20 @@ function updateUserChip() {
   document.getElementById('admin-btn').style.display = isAdmin(sessUser) ? '' : 'none';
 }
 
+const AUTH_URL = 'auth.html';
+
 function showAuthModal() {
-  authMode = 'register';
-  applyAuthMode();
-  document.getElementById('auth-error').textContent = '';
-  document.getElementById('auth-nick').value = '';
-  document.getElementById('auth-user').value = '';
-  document.getElementById('auth-pass').value = '';
-  document.getElementById('auth-invite').value = '';
-  document.getElementById('auth-modal').classList.add('show');
-  setTimeout(() => document.getElementById('auth-user').focus(), 50);
+  // Redirect to standalone auth page
+  window.location.replace(AUTH_URL);
 }
 function hideAuthModal() {
-  // NEVER hide auth modal if user is not logged in
-  if (!getSession()) return;
-  document.getElementById('auth-modal').classList.remove('show');
+  // No-op - auth is separate page
 }
 function applyAuthMode() {
-  const isReg = authMode === 'register';
-  document.getElementById('auth-title').textContent = isReg ? '注册账号' : '登录';
-  document.getElementById('reg-nick-field').style.display = isReg ? '' : 'none';
-  document.getElementById('reg-invite-field').style.display = isReg ? '' : 'none';
-  document.getElementById('login-hint').style.display = isReg ? 'none' : '';
-  document.getElementById('auth-toggle').textContent = isReg ? '已有账号？登录' : '没有账号？注册';
-  document.getElementById('auth-submit').textContent = isReg ? '注册' : '登录';
+  // No-op - auth is separate page
 }
 function handleAuthSubmit() {
-  const user = document.getElementById('auth-user').value.trim();
-  const pass = document.getElementById('auth-pass').value;
-  const err = document.getElementById('auth-error');
-  err.textContent = '';
-  if (!user) { err.textContent = '请输入用户名'; return; }
-  if (!pass) { err.textContent = '请输入密码'; return; }
-  const accts = loadAccounts();
-
-  if (authMode === 'register') {
-    const nick = document.getElementById('auth-nick').value.trim();
-    const invite = document.getElementById('auth-invite').value.trim();
-    if (!nick) { err.textContent = '请输入昵称'; return; }
-    if (!invite) { err.textContent = '请输入邀请码'; return; }
-    if (!loadInvites().includes(invite)) { err.textContent = '邀请码无效'; return; }
-    if (accts[user]) { err.textContent = '该用户名已被注册'; return; }
-    accts[user] = { nick, pass: hashPass(pass), role: 'user', createdAt: Date.now() };
-    saveAccounts(accts);
-    setSession(user, document.getElementById('auth-remember').checked);
-    // NEW USER: immediately create fresh empty per-user state (skip legacy migration)
-    state = { nickname: nick, groups: [] };
-    saveState();
-    hideAuthModal();
-    onAuthed();
-    toast('注册成功，欢迎 ' + nick);
-  } else {
-    const acct = accts[user];
-    if (!acct) { err.textContent = '用户不存在'; return; }
-    if (acct.pass !== hashPass(pass)) { err.textContent = '密码错误'; return; }
-    setSession(user, document.getElementById('auth-remember').checked);
-    migrateLegacyStateIfNeeded();
-    // Load per-user state from their own storage key
-    state = loadState();
-    state.nickname = acct.nick;
-    saveState();
-    hideAuthModal();
-    onAuthed();
-    toast('登录成功，欢迎回来 ' + acct.nick);
-  }
+  // No-op - auth is separate page
 }
 function logout() {
   if (!confirm('确定退出登录？')) return;
@@ -1220,17 +1064,9 @@ function logout() {
   state.nickname = '';
   activeGroupId = null;
   saveState();
-  // reset UI
-  document.getElementById('chat-area').innerHTML = `
-    <div id="welcome-screen">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-      <h2>选择一个群聊开始聊天</h2>
-      <p>点击左上角 + 创建或加入群聊</p>
-    </div>`;
-  renderGroupList();
-  updateUserChip();
-  showAuthModal();
   toast('已退出登录');
+  // Redirect to standalone auth page
+  setTimeout(() => window.location.replace(AUTH_URL), 300);
 }
 function onAuthed() {
   updateUserChip();
@@ -1994,32 +1830,10 @@ function bindEvents() {
     else if (action === 'join') showJoinModal();
   });
 
-  // Auth modal - bind buttons in CAPTURE phase so they always fire first (BEFORE any parent capture listeners run)
-  const AUTH_CAP = true;
-  document.getElementById('auth-toggle').addEventListener('click', e => {
-    e.stopPropagation();
-    authMode = authMode === 'register' ? 'login' : 'register';
-    applyAuthMode();
-    document.getElementById('auth-error').textContent = '';
-  }, AUTH_CAP);
-  document.getElementById('auth-submit').addEventListener('click', e => {
-    e.stopPropagation();
-    handleAuthSubmit();
-  }, AUTH_CAP);
-  document.getElementById('fill-admin-btn').addEventListener('click', e => {
-    e.stopPropagation();
-    document.getElementById('auth-user').value = DEFAULT_ADMIN_USER;
-    document.getElementById('auth-pass').value = DEFAULT_ADMIN_PASS;
-    document.getElementById('auth-error').textContent = '';
-  }, AUTH_CAP);
-  // IMPORTANT: Only stop propagation on LEAF elements (no descendants that need click events)
-  // Do NOT add capture stopPropagation on CONTAINERS (modal-actions, .field) - blocks child events!
-  document.querySelectorAll('#auth-modal input, #auth-modal .field-hint, #auth-modal .remember-row, #auth-modal label').forEach(el => {
-    el.addEventListener('click', e => e.stopPropagation());
-  });
-  ['auth-user','auth-pass','auth-nick','auth-invite'].forEach(id => {
-    document.getElementById(id).addEventListener('keydown', e => {
-      if (e.key === 'Enter') handleAuthSubmit();
+  // Close modal on overlay click (all non-auth modals)
+  document.querySelectorAll('.modal-overlay').forEach(ov => {
+    ov.addEventListener('click', e => {
+      if (e.target === ov) ov.classList.remove('show');
     });
   });
 
@@ -2063,54 +1877,6 @@ function bindEvents() {
       if (e.key === 'Enter') saveEditGroup();
     });
   });
-
-  // Close modal on overlay click (EXCEPT auth modal - never closes on outside click)
-  document.querySelectorAll('.modal-overlay').forEach(ov => {
-    ov.addEventListener('click', e => {
-      if (e.target === ov && ov.id !== 'auth-modal') ov.classList.remove('show');
-    });
-  });
-
-  // Auth modal - capture phase: ONLY block clicks on the OUTSIDE overlay area (not .modal interior)
-  const authOverlay = document.getElementById('auth-modal');
-  const authModalBox = authOverlay.querySelector('.modal');
-  authOverlay.addEventListener('click', e => {
-    if (getSession()) return; // already logged in - allow normal behavior
-    // CRITICAL FIX: Allow any click that is INSIDE the .modal content box (any child element)
-    if (e.target === authModalBox || authModalBox.contains(e.target)) {
-      return; // let it pass through freely
-    }
-    // Only block clicks on the raw overlay background (outside the modal box)
-    if (e.target === authOverlay || !authModalBox.contains(e.target)) {
-      e.preventDefault();
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-      authOverlay.classList.add('show');
-      return false;
-    }
-  }, true);
-
-  // Also block middle/right click context menu attempts on overlay
-  authOverlay.addEventListener('contextmenu', e => {
-    if (!getSession()) e.preventDefault();
-  });
-
-  // Lock auth modal: when user is NOT logged in, auth modal cannot be dismissed in any way
-  function isAuthed() { return !!getSession(); }
-  function lockAuthModalIfLoggedOut() {
-    const authModal = document.getElementById('auth-modal');
-    if (!isAuthed()) {
-      authModal.classList.add('show');
-      // Force visibility - ensure it's shown even if someone tries to hide it
-      requestAnimationFrame(() => {
-        if (!isAuthed()) authModal.classList.add('show');
-      });
-    }
-  }
-  // Periodic check every 300ms to ensure auth modal stays visible when logged out
-  setInterval(lockAuthModalIfLoggedOut, 300);
-  // Run immediately on bind
-  lockAuthModalIfLoggedOut();
 
   // Back button on mobile (chat header) - optional
   window.addEventListener('resize', () => {});

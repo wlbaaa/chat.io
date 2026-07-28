@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>登录 / 注册 · 聊天室</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: transparent;
+    --panel: rgba(255,255,255,0.18);
+    --panel2: rgba(255,255,255,0.12);
+    --panel-solid: rgba(255,255,255,0.85);
+    --border: rgba(255,255,255,0.45);
+    --border-strong: rgba(255,255,255,0.65);
+    --text: #f0f0f5;
+    --muted: rgba(240,240,245,0.70);
+    --accent: #7c8cff;
+    --danger: #ff6b6b;
+    --glass-blur: 4px;
+    --glass-saturate: 180%;
+    --glass-shadow: 0 8px 32px rgba(0,0,0,0.18);
+    --glass-highlight: inset 0 1px 1px rgba(255,255,255,0.5), inset 0 -1px 1px rgba(0,0,0,0.05);
+    --glass-edge: linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.08) 40%, rgba(255,255,255,0.05) 60%, rgba(255,255,255,0.5) 100%);
+  }
+  html, body { height: 100%; }
+  body {
+    background: url('bg.jpg') no-repeat center center fixed;
+    background-size: cover;
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+      "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  /* Bottom blur gradient layer - "脚底模糊" effect */
+  body::before {
+    content: '';
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    height: 45%;
+    z-index: -1;
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    mask-image: linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.6) 40%, rgba(0,0,0,0) 100%);
+    -webkit-mask-image: linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.6) 40%, rgba(0,0,0,0) 100%);
+    background: rgba(255,255,255,0.12);
+    pointer-events: none;
+  }
+  /* Top subtle blur for balance */
+  body::after {
+    content: '';
+    position: fixed;
+    left: 0; right: 0; top: 0;
+    height: 25%;
+    z-index: -1;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    mask-image: linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 100%);
+    -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 100%);
+    background: rgba(255,255,255,0.06);
+    pointer-events: none;
+  }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+  input { font-family: inherit; }
+
+  /* App title above modal */
+  .app-brand {
+    text-align: center;
+    margin-bottom: 24px;
+    animation: brandIn .5s cubic-bezier(.4,0,.2,1);
+  }
+  .app-brand .logo {
+    width: 56px; height: 56px;
+    margin: 0 auto 12px;
+    border-radius: 18px;
+    background: rgba(124,140,255,0.40);
+    backdrop-filter: blur(4px) saturate(200%);
+    -webkit-backdrop-filter: blur(4px) saturate(200%);
+    border: 1px solid rgba(255,255,255,0.5);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 8px 24px rgba(99,102,241,0.35), inset 0 1px 0 rgba(255,255,255,0.6);
+  }
+  .app-brand .logo svg { width: 28px; height: 28px; stroke: #fff; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .app-brand h1 {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.25);
+  }
+  .app-brand p {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+  @keyframes brandIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+
+  /* Liquid glass modal */
+  .modal {
+    background: rgba(255,255,255,0.60);
+    backdrop-filter: blur(30px) saturate(200%) brightness(1.15);
+    -webkit-backdrop-filter: blur(30px) saturate(200%) brightness(1.15);
+    border: 1px solid rgba(255,255,255,0.75);
+    border-radius: 24px;
+    width: 100%; max-width: 420px;
+    padding: 28px 24px 24px;
+    box-shadow: 0 24px 70px rgba(0,0,0,0.20), inset 0 1px 1px rgba(255,255,255,0.9), inset 0 -1px 1px rgba(255,255,255,0.4);
+    position: relative;
+    animation: modalIn .35s cubic-bezier(.34,1.56,.64,1);
+    color: #1a1a2e;
+  }
+  @keyframes modalIn { from { opacity: 0; transform: translateY(16px) scale(.96); } to { opacity: 1; transform: none; } }
+  /* Refractive edge gradient on modal */
+  .modal::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1.2px;
+    background: var(--glass-edge);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    pointer-events: none;
+  }
+  /* Top specular highlight */
+  .modal::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 12%; right: 12%;
+    height: 40%;
+    border-radius: inherit;
+    background: linear-gradient(180deg, rgba(255,255,255,0.35), transparent);
+    pointer-events: none;
+    opacity: 0.6;
+  }
+  .modal > * { position: relative; z-index: 1; }
+
+  .modal h2 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 22px;
+    text-align: center;
+    color: #1a1a2e;
+  }
+
+  .field { margin-bottom: 18px; }
+  .field label {
+    display: block;
+    font-size: 12px;
+    color: rgba(26,26,46,0.65);
+    margin-bottom: 8px;
+    font-weight: 500;
+  }
+  .field input[type="text"],
+  .field input[type="password"] {
+    width: 100%;
+    background: rgba(255,255,255,0.55);
+    border: 1px solid rgba(26,26,46,0.12);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: #1a1a2e;
+    font-size: 14px;
+    outline: none;
+    transition: all .2s;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.04);
+  }
+  .field input[type="text"]:focus,
+  .field input[type="password"]:focus {
+    border-color: var(--accent);
+    background: rgba(255,255,255,0.75);
+    box-shadow: 0 0 0 3px rgba(124,140,255,0.2), inset 0 1px 2px rgba(0,0,0,0.04);
+  }
+  .field input::placeholder { color: rgba(26,26,46,0.4); }
+
+  /* Remember-me checkbox */
+  .remember-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: -4px 0 14px;
+    font-size: 13px;
+    color: rgba(26,26,46,0.6);
+    cursor: pointer;
+    user-select: none;
+  }
+  .remember-row input { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
+  .remember-row:hover span { color: rgba(26,26,46,0.85); }
+
+  .field-hint { font-size: 11px; color: rgba(26,26,46,0.5); margin-top: 6px; }
+  .error-msg {
+    font-size: 13px;
+    color: var(--danger);
+    margin-bottom: 12px;
+    min-height: 18px;
+    text-align: center;
+    font-weight: 500;
+  }
+
+  /* Login hint */
+  .login-hint {
+    background: rgba(124,140,255,0.12);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    border: 1px solid rgba(124,140,255,0.3);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.55);
+  }
+  .login-hint .hint-title {
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #1a1a2e;
+  }
+  .login-hint .hint-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+    color: rgba(26,26,46,0.65);
+  }
+  .login-hint code {
+    background: rgba(255,255,255,0.55);
+    color: #4f46e5;
+    border: 1px solid rgba(124,140,255,0.3);
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-family: ui-monospace, monospace;
+    font-weight: 500;
+  }
+  .login-hint .hint-fill {
+    margin-top: 8px;
+    width: 100%;
+    padding: 9px;
+    border-radius: 10px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all .2s;
+    border: 1px solid rgba(255,255,255,0.25);
+    box-shadow: 0 4px 12px rgba(99,102,241,0.35), inset 0 1px 0 rgba(255,255,255,0.4);
+  }
+  .login-hint .hint-fill:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(99,102,241,0.45); }
+  .login-hint .hint-divider {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed rgba(124,140,255,0.35);
+    text-align: center;
+    color: rgba(26,26,46,0.5);
+    font-size: 12px;
+  }
+
+  .modal-actions { display: flex; gap: 10px; margin-top: 4px; }
+  .btn {
+    flex: 1;
+    padding: 12px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all .2s cubic-bezier(.4,0,.2,1);
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.3);
+    box-shadow: 0 4px 14px rgba(124,140,255,0.4);
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(124,140,255,0.5); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-primary:disabled { opacity: .35; cursor: not-allowed; transform: none; box-shadow: none; }
+  .btn-secondary {
+    background: rgba(255,255,255,0.6);
+    border: 1px solid rgba(26,26,46,0.15);
+    color: #1a1a2e;
+  }
+  .btn-secondary:hover { background: rgba(255,255,255,0.8); }
+
+  /* Toast */
+  #toast {
+    position: fixed;
+    bottom: 30px; left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(255,255,255,0.22);
+    backdrop-filter: blur(2px) saturate(180%);
+    -webkit-backdrop-filter: blur(2px) saturate(180%);
+    border: 1px solid var(--border-strong);
+    color: var(--text);
+    padding: 12px 22px;
+    border-radius: 14px;
+    font-size: 13px;
+    opacity: 0;
+    pointer-events: none;
+    transition: all .25s cubic-bezier(.4,0,.2,1);
+    z-index: 200;
+    box-shadow: 0 12px 36px rgba(31,38,135,0.18), inset 0 1px 0 rgba(255,255,255,0.65);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.15);
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Success overlay - shows on successful login before redirect */
+  .redirect-overlay {
+    position: fixed; inset: 0;
+    display: none;
+    align-items: center; justify-content: center;
+    z-index: 300;
+    background: rgba(0,0,0,0.3);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    animation: fadeIn .25s;
+  }
+  .redirect-overlay.show { display: flex; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .redirect-card {
+    background: rgba(255,255,255,0.75);
+    backdrop-filter: blur(20px) saturate(200%);
+    -webkit-backdrop-filter: blur(20px) saturate(200%);
+    border: 1px solid rgba(255,255,255,0.7);
+    border-radius: 20px;
+    padding: 28px 36px;
+    text-align: center;
+    color: #1a1a2e;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+    animation: cardIn .35s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes cardIn { from { opacity: 0; transform: scale(.9); } to { opacity: 1; transform: none; } }
+  .redirect-card .check {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: #22c55e;
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 14px;
+    box-shadow: 0 6px 20px rgba(34,197,94,0.45), inset 0 1px 0 rgba(255,255,255,0.4);
+    animation: checkPop .4s cubic-bezier(.34,1.56,.64,1) .1s both;
+  }
+  @keyframes checkPop { from { transform: scale(0); } to { transform: scale(1); } }
+  .redirect-card .check svg { width: 28px; height: 28px; stroke: #fff; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+  .redirect-card h3 { font-size: 17px; margin-bottom: 6px; color: #1a1a2e; }
+  .redirect-card p { font-size: 13px; color: rgba(26,26,46,0.6); }
+
+  @media (max-width: 480px) {
+    .modal { padding: 24px 18px 20px; }
+    .modal h2 { font-size: 18px; margin-bottom: 18px; }
+  }
+</style>
+</head>
+<body>
+  <div class="app-brand">
+    <div class="logo">
+      <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    </div>
+    <h1>聊天室</h1>
+    <p>登录以开始聊天</p>
+  </div>
+
+  <div class="modal">
+    <h2 id="auth-title">注册账号</h2>
+
+    <div class="field" id="reg-nick-field">
+      <label>昵称</label>
+      <input type="text" id="auth-nick" placeholder="聊天中显示的昵称" maxlength="20">
+    </div>
+
+    <div class="field">
+      <label>用户名</label>
+      <input type="text" id="auth-user" placeholder="登录用户名" maxlength="20" autocomplete="off">
+    </div>
+
+    <div class="field">
+      <label>密码</label>
+      <input type="password" id="auth-pass" placeholder="密码" maxlength="40" autocomplete="off">
+    </div>
+
+    <label class="remember-row">
+      <input type="checkbox" id="auth-remember" checked>
+      <span>记住我（下次自动登录）</span>
+    </label>
+
+    <div class="field" id="reg-invite-field">
+      <label>邀请码</label>
+      <input type="text" id="auth-invite" placeholder="请输入邀请码" maxlength="20">
+      <div class="field-hint">管理员可生成邀请码</div>
+    </div>
+
+    <div class="error-msg" id="auth-error"></div>
+
+    <div id="login-hint" class="login-hint" style="display:none;">
+      <div class="hint-title">默认管理员账号</div>
+      <div class="hint-row"><span>用户名：</span><code>admin</code></div>
+      <div class="hint-row"><span>密码：</span><code>admin123</code></div>
+      <button type="button" class="hint-fill" id="fill-admin-btn">一键填充管理员账号</button>
+      <div class="hint-divider">或使用你自己注册的普通账号登录</div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="auth-toggle">已有账号？登录</button>
+      <button class="btn btn-primary" id="auth-submit">注册</button>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <div class="redirect-overlay" id="redirect-overlay">
+    <div class="redirect-card">
+      <div class="check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
+      <h3 id="redirect-title">登录成功</h3>
+      <p id="redirect-text">正在跳转...</p>
+    </div>
+  </div>
+
+<script>
+/* ===================== Constants ===================== */
+const ACCOUNTS_KEY = 'chatroom.accounts.v1';
+const SESSION_KEY = 'chatroom.session.v1';
+const INVITES_KEY = 'chatroom.invites.v1';
+const DEFAULT_INVITES = ['CHAT2026', 'WELCOME123', 'CHATIO666', 'VIP8888', 'HELLO999'];
+const DEFAULT_ADMIN_USER = 'admin';
+const DEFAULT_ADMIN_PASS = 'admin123';
+const REDIRECT_URL = 'index.html';
+
+let authMode = 'register'; // 'register' | 'login'
+
+/* ===================== Persistence helpers ===================== */
+function getSession() {
+  try {
+    return localStorage.getItem(SESSION_KEY)
+      || sessionStorage.getItem(SESSION_KEY) || '';
+  } catch(e) { return ''; }
+}
+function setSession(user, remember) {
+  try { localStorage.removeItem(SESSION_KEY); } catch(e) {}
+  try { sessionStorage.removeItem(SESSION_KEY); } catch(e) {}
+  if (!user) return;
+  if (remember) localStorage.setItem(SESSION_KEY, user);
+  else sessionStorage.setItem(SESSION_KEY, user);
+}
+function hashPass(s) {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) + h) ^ s.charCodeAt(i);
+  }
+  return (h >>> 0).toString(16);
+}
+
+function loadAccounts() {
+  let accts = {};
+  try {
+    const raw = localStorage.getItem(ACCOUNTS_KEY);
+    if (raw) accts = JSON.parse(raw);
+  } catch(e) {}
+  // Seed admin account if empty
+  if (!accts[DEFAULT_ADMIN_USER]) {
+    accts[DEFAULT_ADMIN_USER] = {
+      nick: '管理员',
+      pass: hashPass(DEFAULT_ADMIN_PASS),
+      role: 'admin',
+      createdAt: Date.now()
+    };
+    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accts));
+  }
+  return accts;
+}
+function saveAccounts(accts) {
+  localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accts));
+}
+function loadInvites() {
+  try {
+    const raw = localStorage.getItem(INVITES_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  localStorage.setItem(INVITES_KEY, JSON.stringify(DEFAULT_INVITES));
+  return [...DEFAULT_INVITES];
+}
+
+/* ===================== UI: mode switching ===================== */
+function applyAuthMode() {
+  const isReg = authMode === 'register';
+  document.getElementById('auth-title').textContent = isReg ? '注册账号' : '登录';
+  document.getElementById('reg-nick-field').style.display = isReg ? '' : 'none';
+  document.getElementById('reg-invite-field').style.display = isReg ? '' : 'none';
+  document.getElementById('login-hint').style.display = isReg ? 'none' : '';
+  document.getElementById('auth-toggle').textContent = isReg ? '已有账号？登录' : '没有账号？注册';
+  document.getElementById('auth-submit').textContent = isReg ? '注册' : '登录';
+}
+
+/* ===================== Toast ===================== */
+let toastTimer = null;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+/* ===================== Migrate legacy state ===================== */
+function migrateLegacyStateIfNeeded(user) {
+  const userKey = `chatroom.state.v1.${user}`;
+  const legacyKey = 'chatroom.state.v1';
+  if (localStorage.getItem(userKey)) return;
+  const legacyRaw = localStorage.getItem(legacyKey);
+  if (!legacyRaw) return;
+  try {
+    localStorage.setItem(userKey, legacyRaw);
+  } catch(e) {}
+}
+
+/* ===================== Submit ===================== */
+function handleAuthSubmit() {
+  const user = document.getElementById('auth-user').value.trim();
+  const pass = document.getElementById('auth-pass').value;
+  const err = document.getElementById('auth-error');
+  err.textContent = '';
+  if (!user) { err.textContent = '请输入用户名'; return; }
+  if (!pass) { err.textContent = '请输入密码'; return; }
+  const accts = loadAccounts();
+  const remember = document.getElementById('auth-remember').checked;
+
+  if (authMode === 'register') {
+    const nick = document.getElementById('auth-nick').value.trim();
+    const invite = document.getElementById('auth-invite').value.trim();
+    if (!nick) { err.textContent = '请输入昵称'; return; }
+    if (!invite) { err.textContent = '请输入邀请码'; return; }
+    if (!loadInvites().includes(invite.toUpperCase())) { err.textContent = '邀请码无效'; return; }
+    if (accts[user]) { err.textContent = '该用户名已被注册'; return; }
+    accts[user] = { nick, pass: hashPass(pass), role: 'user', createdAt: Date.now() };
+    saveAccounts(accts);
+    setSession(user, remember);
+    // NEW USER: fresh empty per-user state
+    const userKey = `chatroom.state.v1.${user}`;
+    localStorage.setItem(userKey, JSON.stringify({ nickname: nick, groups: [] }));
+    showRedirect('注册成功', '欢迎 ' + nick + '，正在进入聊天室...', nick);
+  } else {
+    const acct = accts[user];
+    if (!acct) { err.textContent = '用户不存在'; return; }
+    if (acct.pass !== hashPass(pass)) { err.textContent = '密码错误'; return; }
+    setSession(user, remember);
+    migrateLegacyStateIfNeeded(user);
+    // Ensure nickname is set
+    const userKey = `chatroom.state.v1.${user}`;
+    try {
+      const raw = localStorage.getItem(userKey);
+      let state = raw ? JSON.parse(raw) : { nickname: '', groups: [] };
+      state.nickname = acct.nick;
+      localStorage.setItem(userKey, JSON.stringify(state));
+    } catch(e) {}
+    showRedirect('登录成功', '欢迎回来，' + acct.nick + '！正在为您跳转...', acct.nick);
+  }
+}
+
+function showRedirect(title, text, nick) {
+  document.getElementById('redirect-title').textContent = title;
+  document.getElementById('redirect-text').textContent = text;
+  document.getElementById('redirect-overlay').classList.add('show');
+  setTimeout(() => {
+    window.location.replace(REDIRECT_URL);
+  }, 900);
+}
+
+/* ===================== Event bindings ===================== */
+document.addEventListener('DOMContentLoaded', () => {
+  // If already logged in, redirect to main page
+  if (getSession()) {
+    window.location.replace(REDIRECT_URL);
+    return;
+  }
+
+  applyAuthMode();
+  document.getElementById('auth-error').textContent = '';
+
+  // Toggle between register/login
+  document.getElementById('auth-toggle').addEventListener('click', () => {
+    authMode = authMode === 'register' ? 'login' : 'register';
+    applyAuthMode();
+    document.getElementById('auth-error').textContent = '';
+  });
+
+  // Submit
+  document.getElementById('auth-submit').addEventListener('click', handleAuthSubmit);
+
+  // One-click admin fill (only visible in login mode)
+  document.getElementById('fill-admin-btn').addEventListener('click', () => {
+    document.getElementById('auth-user').value = DEFAULT_ADMIN_USER;
+    document.getElementById('auth-pass').value = DEFAULT_ADMIN_PASS;
+    document.getElementById('auth-error').textContent = '';
+  });
+
+  // Enter key on all inputs = submit
+  ['auth-user', 'auth-pass', 'auth-nick', 'auth-invite'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', e => {
+      if (e.key === 'Enter') handleAuthSubmit();
+    });
+  });
+
+  // Focus first appropriate field
+  setTimeout(() => {
+    const first = authMode === 'register' ? 'auth-nick' : 'auth-user';
+    document.getElementById(first).focus();
+  }, 80);
+});
+</script>
+</body>
+</html>
