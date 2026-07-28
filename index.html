@@ -1194,10 +1194,11 @@ function migrateLegacyStateIfNeeded() {
   // No legacy data either, skip
   const legacyRaw = localStorage.getItem(legacyKey);
   if (!legacyRaw) return;
-  // Copy legacy data to user's own key
+  // Copy legacy data to user's own key, then remove legacy key to prevent cross-user leak
   try {
     const legacyData = JSON.parse(legacyRaw);
     localStorage.setItem(userKey, JSON.stringify(legacyData));
+    localStorage.removeItem(legacyKey);
   } catch(e) {}
 }
 
