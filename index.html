@@ -1191,10 +1191,8 @@ function handleAuthSubmit() {
     accts[user] = { nick, pass: hashPass(pass), role: 'user', createdAt: Date.now() };
     saveAccounts(accts);
     setSession(user, document.getElementById('auth-remember').checked);
-    migrateLegacyStateIfNeeded();
-    // Load per-user state (new user = fresh state)
-    state = loadState();
-    state.nickname = nick;
+    // NEW USER: immediately create fresh empty per-user state (skip legacy migration)
+    state = { nickname: nick, groups: [] };
     saveState();
     hideAuthModal();
     onAuthed();
