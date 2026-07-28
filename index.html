@@ -1025,15 +1025,19 @@ let pendingCreateAction = null;
 let authMode = 'register'; // 'register' | 'login'
 
 /* ===================== Persistence ===================== */
+function getUserStorageKey() {
+  const user = getSession();
+  return user ? `chatroom.state.v1.${user}` : STORAGE_KEY;
+}
 function loadState() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(getUserStorageKey());
     if (raw) return JSON.parse(raw);
   } catch(e) {}
   return { nickname: '', groups: [] };
 }
 function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  localStorage.setItem(getUserStorageKey(), JSON.stringify(state));
 }
 
 /* ===================== Accounts / Auth ===================== */
@@ -1171,6 +1175,8 @@ function handleAuthSubmit() {
     accts[user] = { nick, pass: hashPass(pass), role: 'user', createdAt: Date.now() };
     saveAccounts(accts);
     setSession(user, document.getElementById('auth-remember').checked);
+    // Load per-user state (new user = fresh state)
+    state = loadState();
     state.nickname = nick;
     saveState();
     hideAuthModal();
@@ -1181,6 +1187,8 @@ function handleAuthSubmit() {
     if (!acct) { err.textContent = '用户不存在'; return; }
     if (acct.pass !== hashPass(pass)) { err.textContent = '密码错误'; return; }
     setSession(user, document.getElementById('auth-remember').checked);
+    // Load per-user state from their own storage key
+    state = loadState();
     state.nickname = acct.nick;
     saveState();
     hideAuthModal();
@@ -2041,7 +2049,6 @@ function bindEvents() {
 /* ===================== Init ===================== */
 function init() {
   bindEvents();
-  renderGroupList();
 
   // Check session: auto-login if previously authenticated
   const sessUser = getSession();
@@ -2049,15 +2056,22 @@ function init() {
     const accts = loadAccounts();
     const acct = accts[sessUser];
     if (acct) {
+      // Load per-user state from their own storage key
+      state = loadState();
       state.nickname = acct.nick;
       saveState();
+      renderGroupList();
       updateUserChip();
       connectMQTT();
     } else {
       setSession(null);
+      state = loadState();
+      renderGroupList();
       showAuthModal();
     }
   } else {
+    state = loadState();
+    renderGroupList();
     showAuthModal();
   }
 
