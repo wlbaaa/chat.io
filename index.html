@@ -1039,6 +1039,22 @@ function loadState() {
 function saveState() {
   localStorage.setItem(getUserStorageKey(), JSON.stringify(state));
 }
+// Migrate shared legacy state to user-specific key on login
+function migrateLegacyStateIfNeeded() {
+  const userKey = getUserStorageKey();
+  const legacyKey = STORAGE_KEY;
+  if (userKey === legacyKey) return; // no user logged in yet
+  // If user already has their own state, skip
+  if (localStorage.getItem(userKey)) return;
+  // No legacy data either, skip
+  const legacyRaw = localStorage.getItem(legacyKey);
+  if (!legacyRaw) return;
+  // Copy legacy data to user's own key
+  try {
+    const legacyData = JSON.parse(legacyRaw);
+    localStorage.setItem(userKey, JSON.stringify(legacyData));
+  } catch(e) {}
+}
 
 /* ===================== Accounts / Auth ===================== */
 const DEFAULT_ADMIN_USER = 'admin';
@@ -1175,6 +1191,7 @@ function handleAuthSubmit() {
     accts[user] = { nick, pass: hashPass(pass), role: 'user', createdAt: Date.now() };
     saveAccounts(accts);
     setSession(user, document.getElementById('auth-remember').checked);
+    migrateLegacyStateIfNeeded();
     // Load per-user state (new user = fresh state)
     state = loadState();
     state.nickname = nick;
@@ -1187,6 +1204,7 @@ function handleAuthSubmit() {
     if (!acct) { err.textContent = '用户不存在'; return; }
     if (acct.pass !== hashPass(pass)) { err.textContent = '密码错误'; return; }
     setSession(user, document.getElementById('auth-remember').checked);
+    migrateLegacyStateIfNeeded();
     // Load per-user state from their own storage key
     state = loadState();
     state.nickname = acct.nick;
@@ -2056,6 +2074,7 @@ function init() {
     const accts = loadAccounts();
     const acct = accts[sessUser];
     if (acct) {
+      migrateLegacyStateIfNeeded();
       // Load per-user state from their own storage key
       state = loadState();
       state.nickname = acct.nick;
