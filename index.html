@@ -1257,12 +1257,14 @@ function loadGroupRegistry() {
 function saveGroupRegistry(reg) {
   localStorage.setItem(GROUPS_REGISTRY_KEY, JSON.stringify(reg));
 }
+// Returns true if the code was newly registered, false if it already existed
+// (globally unique join code enforced via shared registry).
 function registerGroup(g) {
   const reg = loadGroupRegistry();
-  if (!reg[g.code]) {
-    reg[g.code] = { name: g.name, icon: g.icon, code: g.code, createdAt: g.created || Date.now() };
-    saveGroupRegistry(reg);
-  }
+  if (reg[g.code]) return false; // code already taken by another group
+  reg[g.code] = { name: g.name, icon: g.icon, code: g.code, createdAt: g.created || Date.now() };
+  saveGroupRegistry(reg);
+  return true;
 }
 function getSession() {
   try {
@@ -1996,9 +1998,13 @@ function createGroup(name, code, icon) {
     created: Date.now(),
     messages: []
   };
+  // Atomically claim the join code in the shared registry; abort if taken
+  if (!registerGroup(group)) {
+    toast('该加入码已被占用，请换一个');
+    return;
+  }
   state.groups.push(group);
   saveState();
-  registerGroup(group);
   joinGroupTopic(code);
   renderGroupList();
   openChat(group.id);
@@ -2015,6 +2021,10 @@ function joinGroup(code) {
   // Look up registry for known group info
   const reg = loadGroupRegistry();
   const known = reg[code];
+  if (!known) {
+    toast('加入码无效，该群聊不存在');
+    return;
+  }
   const group = {
     id: 'g_' + Math.random().toString(36).slice(2, 10),
     name: known ? known.name : '群聊 ' + code,
@@ -2168,6 +2178,8 @@ function bindEvents() {
     if (!name) { toast('请输入群聊名称'); return; }
     if (!code) { toast('请输入加入码'); return; }
     if (state.groups.some(g => g.code === code)) { toast('该加入码已被使用'); return; }
+    // Globally unique: reject if the join code is already taken in the shared registry
+    if (loadGroupRegistry()[code]) { toast('该加入码已被占用，请换一个'); return; }
     document.getElementById('create-modal').classList.remove('show');
     createGroup(name, code, selectedIcon);
   });
