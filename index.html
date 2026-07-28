@@ -1006,6 +1006,20 @@
           </div>
         </div>
       </div>
+      <div id="setting-ghtoken" class="setting-item" style="background:var(--panel2);border:1px solid var(--border);border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:10px;backdrop-filter:blur(2px);margin-top:14px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:40px;height:40px;border-radius:11px;background:rgba(99,102,241,0.25);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--text);font-size:18px;">🔑</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:2px;">GitHub Token</div>
+            <div style="font-size:12px;color:var(--muted);">用于把群聊记录存到 chat.io 仓库（chat/群名/用户名/聊天记录记录.txt）</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="password" id="ghtoken-input" placeholder="ghp_xxx 粘贴你的 GitHub Personal Access Token" style="flex:1;min-width:0;padding:9px 12px;border-radius:9px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-size:13px;">
+          <button class="btn btn-primary" id="ghtoken-save" style="flex-shrink:0;">保存</button>
+        </div>
+        <div id="ghtoken-status" style="font-size:12px;color:var(--muted);"></div>
+      </div>
       <div class="modal-actions" style="margin-top:0;">
         <button class="btn btn-secondary" id="settings-close">关闭</button>
         <button class="btn btn-primary" id="account-logout" style="background:var(--danger);border-color:rgba(255,255,255,0.25);box-shadow:0 4px 14px rgba(239,68,68,0.35);">
@@ -1856,6 +1870,24 @@ function openChat(id) {
   if (window.innerWidth <= 640) {
     document.getElementById('sidebar').classList.add('hidden');
   }
+  // 从 GitHub 群仓库加载历史聊天记录
+  ghLoadChatHistory(g.name).then(hist => {
+    if (!hist.length) return;
+    const cur = state.groups.find(x => x.id === activeGroupId);
+    if (!cur || cur.id !== g.id) return;
+    if (!cur.messages) cur.messages = [];
+    const seen = new Set(cur.messages.map(m => (m.nick || '') + '|' + (m.text || '') + '|' + (m.ts || '')));
+    hist.forEach(h => {
+      const ts = parseGhTime(h.time);
+      const key = h.user + '|' + h.text + '|' + ts;
+      if (seen.has(key)) return;
+      cur.messages.push({ type: 'chat', id: 'gh_' + ts + '_' + Math.random().toString(36).slice(2, 7), nick: h.user, text: h.text, ts });
+      seen.add(key);
+    });
+    cur.messages.sort((a, b) => (a.ts || 0) - (b.ts || 0));
+    saveState();
+    if (activeGroupId === cur.id) renderMessages();
+  });
 }
 
 function backToGroupList() {
@@ -1988,6 +2020,11 @@ function send() {
   } else {
     toast('未连接到服务器，消息未能发送');
   }
+  // 写入 GitHub 群仓库：chat/{群名}/{用户名}/聊天记录记录.txt
+  const d = new Date(msg.ts);
+  const pad = n => n.toString().padStart(2, '0');
+  const line = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()) + ':' + msg.text;
+  ghAppendChatLine(g.name, state.nickname || getSession(), line);
 }
 
 /* ===================== Groups actions ===================== */
@@ -2008,6 +2045,7 @@ function createGroup(name, code, icon) {
   joinGroupTopic(code);
   renderGroupList();
   openChat(group.id);
+  ghInitGroupDir(name);
   toast('群聊已创建');
 }
 
@@ -2124,7 +2162,120 @@ function randomCode() {
   return s;
 }
 
+/* ===================== GitHub Chat History (per-group repo) ===================== */
+// 每个群作为一个仓库目录：chat/{群名}/{用户名}/聊天记录记录.txt
+// 记录格式：{时}:{分}:{秒}:{消息内容}
+const GH_REPO = 'wlbaaa/chat.io';
+const GH_API = 'https://api.github.com/repos/' + GH_REPO + '/contents/';
+const GH_BRANCH = 'main';
+const GH_REC_FILE = '聊天记录记录.txt';
+const GH_TOKEN_KEY = 'chatroom.ghtoken';
+
+function getGhToken() {
+  try { return localStorage.getItem(GH_TOKEN_KEY) || ''; } catch(e) { return ''; }
+}
+function ghHeaders() {
+  return {
+    'Authorization': 'token ' + getGhToken(),
+    'Content-Type': 'application/json',
+    'Accept': 'application/vnd.github.v3+json'
+  };
+}
+function ghEncodePath(p) {
+  // encode each path segment (keep '/'), UTF-8 safe
+  return p.split('/').map(encodeURIComponent).join('/');
+}
+// 追加一行聊天记录到 GitHub 文件（无文件则创建）
+async function ghAppendChatLine(groupName, userName, line) {
+  const path = 'chat/' + groupName + '/' + userName + '/' + GH_REC_FILE;
+  const url = GH_API + ghEncodePath(path);
+  let sha = null, existing = '';
+  try {
+    const r = await fetch(url + '?ref=' + GH_BRANCH, { headers: ghHeaders() });
+    if (r.ok) {
+      const j = await r.json();
+      sha = j.sha;
+      existing = decodeURIComponent(escape(atob(j.content.replace(/\s/g, ''))));
+    }
+  } catch (e) { /* file not exist yet */ }
+  const newContent = existing
+    ? (existing.replace(/\n*$/, '') + '\n' + line + '\n')
+    : (line + '\n');
+  const body = {
+    message: 'chat: ' + userName + ' -> ' + groupName,
+    content: btoa(unescape(encodeURIComponent(newContent))),
+    branch: GH_BRANCH
+  };
+  if (sha) body.sha = sha;
+  try {
+    const r = await fetch(url, {
+      method: 'PUT',
+      headers: ghHeaders(),
+      body: JSON.stringify(body)
+    });
+    return r.ok;
+  } catch (e) { return false; }
+}
+// 读取某群全部聊天记录，返回 [{user, time, text}]
+async function ghLoadChatHistory(groupName) {
+  const base = 'chat/' + groupName + '/';
+  const out = [];
+  try {
+    const r = await fetch(GH_API + ghEncodePath(base) + '?ref=' + GH_BRANCH, { headers: ghHeaders() });
+    if (!r.ok) return out;
+    const users = await r.json();
+    if (!Array.isArray(users)) return out;
+    for (const u of users) {
+      if (u.type !== 'dir') continue;
+      const ur = await fetch(GH_API + ghEncodePath(u.path) + '?ref=' + GH_BRANCH, { headers: ghHeaders() });
+      if (!ur.ok) continue;
+      const files = await ur.json();
+      if (!Array.isArray(files)) continue;
+      const rec = files.find(f => f.name === GH_REC_FILE);
+      if (!rec) continue;
+      const fr = await fetch(rec.url + '?ref=' + GH_BRANCH, { headers: ghHeaders() });
+      if (!fr.ok) continue;
+      const fj = await fr.json();
+      const text = decodeURIComponent(escape(atob(fj.content.replace(/\s/g, ''))));
+      text.split('\n').forEach(l => {
+        const t = l.trim();
+        if (!t) return;
+        const idx = t.lastIndexOf(':');
+        if (idx <= 0) return;
+        const content = t.slice(idx + 1);
+        const time = t.slice(0, idx);
+        out.push({ user: u.name, time, text: content });
+      });
+    }
+  } catch (e) { /* ignore */ }
+  return out;
+}
+// 初始化群目录（创建 chat/{群名}/README.md）
+async function ghInitGroupDir(groupName) {
+  const path = 'chat/' + groupName + '/README.md';
+  const url = GH_API + ghEncodePath(path);
+  try {
+    const r = await fetch(url + '?ref=' + GH_BRANCH, { headers: ghHeaders() });
+    if (r.ok) return true; // already exists
+    const body = {
+      message: 'chore: init group ' + groupName,
+      content: btoa(unescape(encodeURIComponent('# 群聊 ' + groupName + ' 聊天记录仓库\n'))),
+      branch: GH_BRANCH
+    };
+    const w = await fetch(url, { method: 'PUT', headers: ghHeaders(), body: JSON.stringify(body) });
+    return w.ok;
+  } catch (e) { return false; }
+}
+
 /* ===================== Utils ===================== */
+function parseGhTime(t) {
+  // t = "HH:MM:SS" -> timestamp (today)
+  const parts = String(t).split(':');
+  if (parts.length < 3) return Date.now();
+  const now = new Date();
+  now.setHours(+parts[0] || 0, +parts[1] || 0, +parts[2] || 0, 0);
+  return now.getTime();
+}
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({
     '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
@@ -2231,6 +2382,18 @@ function bindEvents() {
   document.getElementById('account-logout').addEventListener('click', e => {
     e.stopPropagation();
     logout();
+  });
+
+  // GitHub Token save
+  const ghInput = document.getElementById('ghtoken-input');
+  const ghStatus = document.getElementById('ghtoken-status');
+  try { const saved = localStorage.getItem(GH_TOKEN_KEY); if (saved) ghInput.value = saved; } catch(e) {}
+  document.getElementById('ghtoken-save').addEventListener('click', () => {
+    const v = ghInput.value.trim();
+    if (!v) { ghStatus.textContent = '请输入 Token'; ghStatus.style.color = 'var(--danger)'; return; }
+    try { localStorage.setItem(GH_TOKEN_KEY, v); } catch(e) {}
+    ghStatus.textContent = '已保存（仅存于本机浏览器）';
+    ghStatus.style.color = 'var(--accent)';
   });
 
   // Close settings buttons (all tabs have their own close buttons)
