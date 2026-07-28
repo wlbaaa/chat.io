@@ -52,6 +52,17 @@
     gap: 12px;
   }
   .title { font-size: 17px; font-weight: 600; flex: 1; }
+  .user-chip {
+    display: flex; align-items: center; gap: 4px;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 3px 4px 3px 12px;
+    font-size: 12px;
+    color: var(--muted);
+    max-width: 130px;
+  }
+  .user-chip span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .icon-btn {
     width: 36px; height: 36px;
     border-radius: 8px;
@@ -365,6 +376,12 @@
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       </button>
       <div class="title">聊天室</div>
+      <div id="user-chip" class="user-chip" title="账号">
+        <span id="user-chip-name"></span>
+        <button class="icon-btn" id="logout-btn" title="退出登录" style="width:28px;height:28px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </button>
+      </div>
 
       <div id="menu">
         <button class="menu-item" id="menu-create">
@@ -462,11 +479,37 @@
   </div>
 </div>
 
+<!-- Auth Modal (Register / Login) -->
+<div class="modal-overlay" id="auth-modal">
+  <div class="modal">
+    <h2 id="auth-title">注册账号</h2>
+    <div class="field" id="reg-nick-field">
+      <label>昵称</label>
+      <input type="text" id="auth-nick" placeholder="聊天中显示的昵称" maxlength="20">
+    </div>
+    <div class="field">
+      <label>用户名</label>
+      <input type="text" id="auth-user" placeholder="登录用户名" maxlength="20" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>密码</label>
+      <input type="password" id="auth-pass" placeholder="密码" maxlength="40" autocomplete="off">
+    </div>
+    <div class="field-hint" id="auth-error" style="color:var(--danger);margin-bottom:12px;min-height:14px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="auth-toggle">已有账号？登录</button>
+      <button class="btn btn-primary" id="auth-submit">注册</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
 /* ===================== State ===================== */
 const STORAGE_KEY = 'chatroom.state.v1';
+const ACCOUNTS_KEY = 'chatroom.accounts.v1';
+const SESSION_KEY = 'chatroom.session.v1';
 const ICONS = ['💬','🔥','🌟','🎮','🎵','📚','💻','⚽','🍕','🐱','🌈','🚀','☕','🎨','🏆','🌙','🎬','📷','🎲','🌮','🦊','🌸','⚡','☕'];
 const BROKER_URL = 'wss://broker.emqx.io:8084/mqtt';
 const TOPIC_PREFIX = 'trae-chatroom-v1/';
@@ -477,6 +520,7 @@ let activeGroupId = null;
 let selectedIcon = ICONS[0];
 let codeMode = 'random';
 let pendingCreateAction = null;
+let authMode = 'register'; // 'register' | 'login'
 
 /* ===================== Persistence ===================== */
 function loadState() {
@@ -488,6 +532,116 @@ function loadState() {
 }
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+/* ===================== Accounts / Auth ===================== */
+function loadAccounts() {
+  try {
+    const raw = localStorage.getItem(ACCOUNTS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  return {};
+}
+function saveAccounts(accts) {
+  localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accts));
+}
+function getSession() {
+  try { return localStorage.getItem(SESSION_KEY) || ''; } catch(e) { return ''; }
+}
+function setSession(user) {
+  if (user) localStorage.setItem(SESSION_KEY, user);
+  else localStorage.removeItem(SESSION_KEY);
+}
+// Simple non-cryptographic hash (demo only; not for real security)
+function hashPass(s) {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) + h) ^ s.charCodeAt(i);
+  }
+  return (h >>> 0).toString(16);
+}
+
+function updateUserChip() {
+  const chip = document.getElementById('user-chip-name');
+  if (state.nickname) chip.textContent = state.nickname;
+  else chip.textContent = '';
+}
+
+function showAuthModal() {
+  authMode = 'register';
+  applyAuthMode();
+  document.getElementById('auth-error').textContent = '';
+  document.getElementById('auth-nick').value = '';
+  document.getElementById('auth-user').value = '';
+  document.getElementById('auth-pass').value = '';
+  document.getElementById('auth-modal').classList.add('show');
+  setTimeout(() => document.getElementById('auth-user').focus(), 50);
+}
+function hideAuthModal() {
+  document.getElementById('auth-modal').classList.remove('show');
+}
+function applyAuthMode() {
+  const isReg = authMode === 'register';
+  document.getElementById('auth-title').textContent = isReg ? '注册账号' : '登录';
+  document.getElementById('reg-nick-field').style.display = isReg ? '' : 'none';
+  document.getElementById('auth-toggle').textContent = isReg ? '已有账号？登录' : '没有账号？注册';
+  document.getElementById('auth-submit').textContent = isReg ? '注册' : '登录';
+}
+function handleAuthSubmit() {
+  const user = document.getElementById('auth-user').value.trim();
+  const pass = document.getElementById('auth-pass').value;
+  const err = document.getElementById('auth-error');
+  err.textContent = '';
+  if (!user) { err.textContent = '请输入用户名'; return; }
+  if (!pass) { err.textContent = '请输入密码'; return; }
+  const accts = loadAccounts();
+
+  if (authMode === 'register') {
+    const nick = document.getElementById('auth-nick').value.trim();
+    if (!nick) { err.textContent = '请输入昵称'; return; }
+    if (accts[user]) { err.textContent = '该用户名已被注册'; return; }
+    accts[user] = { nick, pass: hashPass(pass) };
+    saveAccounts(accts);
+    setSession(user);
+    state.nickname = nick;
+    saveState();
+    hideAuthModal();
+    onAuthed();
+    toast('注册成功，欢迎 ' + nick);
+  } else {
+    const acct = accts[user];
+    if (!acct) { err.textContent = '用户不存在'; return; }
+    if (acct.pass !== hashPass(pass)) { err.textContent = '密码错误'; return; }
+    setSession(user);
+    state.nickname = acct.nick;
+    saveState();
+    hideAuthModal();
+    onAuthed();
+    toast('登录成功，欢迎回来 ' + acct.nick);
+  }
+}
+function logout() {
+  if (!confirm('确定退出登录？')) return;
+  setSession(null);
+  state.nickname = '';
+  activeGroupId = null;
+  saveState();
+  // reset UI
+  document.getElementById('chat-area').innerHTML = `
+    <div id="welcome-screen">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <h2>选择一个群聊开始聊天</h2>
+      <p>点击左上角 + 创建或加入群聊</p>
+    </div>`;
+  renderGroupList();
+  updateUserChip();
+  showAuthModal();
+  toast('已退出登录');
+}
+function onAuthed() {
+  updateUserChip();
+  renderGroupList();
+  connectMQTT();
 }
 
 /* ===================== MQTT ===================== */
@@ -781,11 +935,6 @@ function leaveGroup(id) {
 
 /* ===================== Modals ===================== */
 function showCreateModal() {
-  if (!state.nickname) {
-    pendingCreateAction = 'create';
-    showNickModal();
-    return;
-  }
   document.getElementById('create-name').value = '';
   setCodeMode('random');
   renderIconPicker();
@@ -795,11 +944,6 @@ function showCreateModal() {
 }
 
 function showJoinModal() {
-  if (!state.nickname) {
-    pendingCreateAction = 'join';
-    showNickModal();
-    return;
-  }
   document.getElementById('join-code').value = '';
   document.getElementById('join-modal').classList.add('show');
   setTimeout(() => document.getElementById('join-code').focus(), 50);
@@ -933,6 +1077,25 @@ function bindEvents() {
     else if (action === 'join') showJoinModal();
   });
 
+  // Auth modal
+  document.getElementById('auth-toggle').addEventListener('click', () => {
+    authMode = authMode === 'register' ? 'login' : 'register';
+    applyAuthMode();
+    document.getElementById('auth-error').textContent = '';
+  });
+  document.getElementById('auth-submit').addEventListener('click', handleAuthSubmit);
+  ['auth-user','auth-pass','auth-nick'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', e => {
+      if (e.key === 'Enter') handleAuthSubmit();
+    });
+  });
+
+  // Logout
+  document.getElementById('logout-btn').addEventListener('click', e => {
+    e.stopPropagation();
+    logout();
+  });
+
   // Close modal on overlay click
   document.querySelectorAll('.modal-overlay').forEach(ov => {
     ov.addEventListener('click', e => {
@@ -948,7 +1111,25 @@ function bindEvents() {
 function init() {
   bindEvents();
   renderGroupList();
-  connectMQTT();
+
+  // Check session: auto-login if previously authenticated
+  const sessUser = getSession();
+  if (sessUser) {
+    const accts = loadAccounts();
+    const acct = accts[sessUser];
+    if (acct) {
+      state.nickname = acct.nick;
+      saveState();
+      updateUserChip();
+      connectMQTT();
+    } else {
+      setSession(null);
+      showAuthModal();
+    }
+  } else {
+    showAuthModal();
+  }
+
   // re-subscribe on reconnect
   setInterval(() => {
     if (client && client.connected) {
