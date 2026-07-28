@@ -349,6 +349,85 @@
     #chat-area { width: 100%; }
     .msg-row { max-width: 85%; }
   }
+
+  /* Admin panel */
+  .admin-tabs {
+    display: flex; gap: 8px; margin-bottom: 16px;
+    background: var(--panel2);
+    padding: 4px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+  .admin-tab {
+    flex: 1;
+    padding: 9px;
+    border-radius: 7px;
+    font-size: 13px;
+    color: var(--muted);
+    transition: all .15s;
+  }
+  .admin-tab.active { background: var(--accent); color: #000; font-weight: 500; }
+  .admin-stats {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 12px; font-size: 13px; color: var(--muted);
+  }
+  .admin-stats b { color: var(--text); }
+  .invite-add-row { display: flex; gap: 8px; }
+  .invite-add-row input {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: var(--text);
+    font-size: 13px;
+    outline: none;
+    width: 180px;
+  }
+  .admin-table-wrap {
+    max-height: 400px;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .admin-table th, .admin-table td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .admin-table thead th {
+    position: sticky; top: 0;
+    background: var(--panel2);
+    color: var(--muted);
+    font-weight: 500;
+    font-size: 12px;
+    z-index: 1;
+  }
+  .admin-table tbody tr:last-child td { border-bottom: none; }
+  .admin-table tbody tr:hover { background: var(--panel2); }
+  .role-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .role-tag.admin { background: #1e3a8a; color: #dbeafe; }
+  .role-tag.user { background: #2a2a2a; color: var(--muted); }
+  .row-actions { display: flex; gap: 6px; }
+  .mini-btn {
+    padding: 5px 9px;
+    border-radius: 6px;
+    font-size: 12px;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    transition: all .12s;
+  }
+  .mini-btn:hover { background: #2a2a2a; }
+  .mini-btn.danger:hover { background: #3b0f0f; color: #fca5a5; border-color: #5b1f1f; }
+  .mini-btn.primary:hover { background: #1e3a8a; color: #dbeafe; border-color: #3b5dc9; }
 </style>
 </head>
 <body>
@@ -360,6 +439,9 @@
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       </button>
       <div class="title">聊天室</div>
+      <button class="icon-btn" id="admin-btn" title="管理后台" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
       <div id="user-chip" class="user-chip" title="账号">
         <span id="user-chip-name"></span>
         <button class="icon-btn" id="logout-btn" title="退出登录" style="width:28px;height:28px;">
@@ -487,6 +569,69 @@
   </div>
 </div>
 
+<!-- Admin Panel Modal -->
+<div class="modal-overlay" id="admin-modal">
+  <div class="modal" style="max-width:620px;">
+    <h2>管理后台</h2>
+    <div class="admin-tabs">
+      <button class="admin-tab active" data-tab="users">用户管理</button>
+      <button class="admin-tab" data-tab="invites">邀请码管理</button>
+    </div>
+    <div id="admin-tab-users" class="admin-pane">
+      <div class="admin-stats">
+        <span>共 <b id="stat-users">0</b> 名用户</span>
+      </div>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+        <thead><tr>
+          <th>用户名</th><th>昵称</th><th>角色</th><th>注册时间</th><th style="width:200px;">操作</th>
+        </tr></thead>
+        <tbody id="user-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div id="admin-tab-invites" class="admin-pane" style="display:none;">
+      <div class="admin-stats">
+        <span>共 <b id="stat-invites">0</b> 个邀请码</span>
+        <div style="flex:1"></div>
+        <div class="invite-add-row">
+          <input type="text" id="new-invite" placeholder="输入新邀请码" maxlength="20">
+          <button class="btn btn-primary" id="add-invite-btn" style="padding:8px 14px;font-size:13px;">添加</button>
+        </div>
+      </div>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+        <thead><tr><th>邀请码</th><th style="width:120px;">操作</th></tr></thead>
+        <tbody id="invite-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="admin-close">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- Reset Password Modal -->
+<div class="modal-overlay" id="reset-modal">
+  <div class="modal">
+    <h2>重置密码</h2>
+    <div class="field">
+      <label>用户</label>
+      <input type="text" id="reset-user" readonly>
+    </div>
+    <div class="field">
+      <label>新密码</label>
+      <input type="text" id="reset-pass" placeholder="输入新密码" maxlength="40">
+    </div>
+    <div class="field-hint" id="reset-error" style="color:var(--danger);margin-bottom:12px;min-height:14px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="reset-cancel">取消</button>
+      <button class="btn btn-primary" id="reset-confirm">确定</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -494,7 +639,8 @@
 const STORAGE_KEY = 'chatroom.state.v1';
 const ACCOUNTS_KEY = 'chatroom.accounts.v1';
 const SESSION_KEY = 'chatroom.session.v1';
-const INVITE_CODES = ['CHAT2026', 'WELCOME123', 'CHATIO666', 'VIP8888', 'HELLO999'];
+const INVITES_KEY = 'chatroom.invites.v1';
+const DEFAULT_INVITES = ['CHAT2026', 'WELCOME123', 'CHATIO666', 'VIP8888', 'HELLO999'];
 const ICONS = ['💬','🔥','🌟','🎮','🎵','📚','💻','⚽','🍕','🐱','🌈','🚀','☕','🎨','🏆','🌙','🎬','📷','🎲','🌮','🦊','🌸','⚡','☕'];
 const BROKER_URL = 'wss://broker.emqx.io:8084/mqtt';
 const TOPIC_PREFIX = 'trae-chatroom-v1/';
@@ -520,15 +666,49 @@ function saveState() {
 }
 
 /* ===================== Accounts / Auth ===================== */
+const DEFAULT_ADMIN_USER = 'admin';
+const DEFAULT_ADMIN_PASS = 'admin123';
+
 function loadAccounts() {
+  let accts = {};
   try {
     const raw = localStorage.getItem(ACCOUNTS_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) accts = JSON.parse(raw);
   } catch(e) {}
-  return {};
+  // Seed admin account if empty
+  if (!accts[DEFAULT_ADMIN_USER]) {
+    accts[DEFAULT_ADMIN_USER] = {
+      nick: '管理员',
+      pass: hashPass(DEFAULT_ADMIN_PASS),
+      role: 'admin',
+      createdAt: Date.now()
+    };
+    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accts));
+  }
+  return accts;
 }
 function saveAccounts(accts) {
   localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accts));
+}
+function isAdmin(user) {
+  if (!user) return false;
+  const accts = localStorage.getItem(ACCOUNTS_KEY);
+  if (!accts) return false;
+  try {
+    const a = JSON.parse(accts)[user];
+    return a && a.role === 'admin';
+  } catch(e) { return false; }
+}
+function loadInvites() {
+  try {
+    const raw = localStorage.getItem(INVITES_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  localStorage.setItem(INVITES_KEY, JSON.stringify(DEFAULT_INVITES));
+  return [...DEFAULT_INVITES];
+}
+function saveInvites(list) {
+  localStorage.setItem(INVITES_KEY, JSON.stringify(list));
 }
 function getSession() {
   try { return localStorage.getItem(SESSION_KEY) || ''; } catch(e) { return ''; }
@@ -550,6 +730,8 @@ function updateUserChip() {
   const chip = document.getElementById('user-chip-name');
   if (state.nickname) chip.textContent = state.nickname;
   else chip.textContent = '';
+  const sessUser = getSession();
+  document.getElementById('admin-btn').style.display = isAdmin(sessUser) ? '' : 'none';
 }
 
 function showAuthModal() {
@@ -588,9 +770,9 @@ function handleAuthSubmit() {
     const invite = document.getElementById('auth-invite').value.trim();
     if (!nick) { err.textContent = '请输入昵称'; return; }
     if (!invite) { err.textContent = '请输入邀请码'; return; }
-    if (!INVITE_CODES.includes(invite)) { err.textContent = '邀请码无效'; return; }
+    if (!loadInvites().includes(invite)) { err.textContent = '邀请码无效'; return; }
     if (accts[user]) { err.textContent = '该用户名已被注册'; return; }
-    accts[user] = { nick, pass: hashPass(pass) };
+    accts[user] = { nick, pass: hashPass(pass), role: 'user', createdAt: Date.now() };
     saveAccounts(accts);
     setSession(user);
     state.nickname = nick;
@@ -632,6 +814,140 @@ function onAuthed() {
   updateUserChip();
   renderGroupList();
   connectMQTT();
+}
+
+/* ===================== Admin Panel ===================== */
+let adminResetUser = null;
+
+function openAdminPanel() {
+  if (!isAdmin(getSession())) { toast('无权限'); return; }
+  document.getElementById('admin-modal').classList.add('show');
+  switchAdminTab('users');
+  renderAdminUsers();
+  renderAdminInvites();
+}
+function closeAdminPanel() {
+  document.getElementById('admin-modal').classList.remove('show');
+}
+function switchAdminTab(tab) {
+  document.querySelectorAll('.admin-tab').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tab);
+  });
+  document.getElementById('admin-tab-users').style.display = tab === 'users' ? '' : 'none';
+  document.getElementById('admin-tab-invites').style.display = tab === 'invites' ? '' : 'none';
+}
+function formatDate(ts) {
+  if (!ts) return '-';
+  const d = new Date(ts);
+  const pad = n => n.toString().padStart(2, '0');
+  return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+function renderAdminUsers() {
+  const accts = loadAccounts();
+  const entries = Object.entries(accts);
+  document.getElementById('stat-users').textContent = entries.length;
+  const tbody = document.getElementById('user-tbody');
+  const sess = getSession();
+  tbody.innerHTML = entries.map(([u, info]) => {
+    const isSelf = u === sess;
+    const isDefault = u === DEFAULT_ADMIN_USER;
+    const roleTag = info.role === 'admin'
+      ? '<span class="role-tag admin">管理员</span>'
+      : '<span class="role-tag user">用户</span>';
+    const actions = [];
+    actions.push(`<button class="mini-btn primary" data-reset="${u}">重置密码</button>`);
+    if (!isDefault) {
+      actions.push(info.role === 'admin'
+        ? `<button class="mini-btn" data-unsetadmin="${u}">取消管理</button>`
+        : `<button class="mini-btn primary" data-setadmin="${u}">设为管理</button>`);
+    }
+    if (!isSelf && !isDefault) {
+      actions.push(`<button class="mini-btn danger" data-deluser="${u}">删除</button>`);
+    }
+    return `<tr>
+      <td>${escapeHtml(u)}</td>
+      <td>${escapeHtml(info.nick || '')}</td>
+      <td>${roleTag}</td>
+      <td>${formatDate(info.createdAt)}</td>
+      <td><div class="row-actions">${actions.join('')}</div></td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:30px;">暂无用户</td></tr>`;
+
+  tbody.querySelectorAll('[data-reset]').forEach(b => b.addEventListener('click', () => openReset(b.dataset.reset)));
+  tbody.querySelectorAll('[data-setadmin]').forEach(b => b.addEventListener('click', () => setRole(b.dataset.setadmin, 'admin')));
+  tbody.querySelectorAll('[data-unsetadmin]').forEach(b => b.addEventListener('click', () => setRole(b.dataset.unsetadmin, 'user')));
+  tbody.querySelectorAll('[data-deluser]').forEach(b => b.addEventListener('click', () => deleteUser(b.dataset.deluser)));
+}
+function setRole(user, role) {
+  if (!confirm(`确定将「${user}」${role === 'admin' ? '设为管理员' : '取消管理员身份'}？`)) return;
+  const accts = loadAccounts();
+  if (!accts[user]) return;
+  accts[user].role = role;
+  saveAccounts(accts);
+  renderAdminUsers();
+  updateUserChip();
+  toast('已更新角色');
+}
+function deleteUser(user) {
+  if (!confirm(`确定删除用户「${user}」？删除后不可恢复`)) return;
+  const accts = loadAccounts();
+  delete accts[user];
+  saveAccounts(accts);
+  renderAdminUsers();
+  toast('用户已删除');
+}
+function openReset(user) {
+  adminResetUser = user;
+  document.getElementById('reset-user').value = user;
+  document.getElementById('reset-pass').value = '';
+  document.getElementById('reset-error').textContent = '';
+  document.getElementById('reset-modal').classList.add('show');
+  setTimeout(() => document.getElementById('reset-pass').focus(), 50);
+}
+function confirmReset() {
+  if (!adminResetUser) return;
+  const p = document.getElementById('reset-pass').value;
+  const err = document.getElementById('reset-error');
+  if (!p) { err.textContent = '请输入新密码'; return; }
+  if (p.length < 4) { err.textContent = '密码至少 4 位'; return; }
+  const accts = loadAccounts();
+  if (!accts[adminResetUser]) { err.textContent = '用户不存在'; return; }
+  accts[adminResetUser].pass = hashPass(p);
+  saveAccounts(accts);
+  document.getElementById('reset-modal').classList.remove('show');
+  adminResetUser = null;
+  toast('密码已重置');
+}
+function renderAdminInvites() {
+  const list = loadInvites();
+  document.getElementById('stat-invites').textContent = list.length;
+  const tbody = document.getElementById('invite-tbody');
+  tbody.innerHTML = list.map(c => `<tr>
+    <td>${escapeHtml(c)}</td>
+    <td><div class="row-actions"><button class="mini-btn danger" data-delinvite="${escapeHtml(c)}">删除</button></div></td>
+  </tr>`).join('') || `<tr><td colspan="2" style="text-align:center;color:var(--muted);padding:30px;">暂无邀请码</td></tr>`;
+  tbody.querySelectorAll('[data-delinvite]').forEach(b => {
+    b.addEventListener('click', () => {
+      const code = b.dataset.delinvite;
+      if (!confirm(`确定删除邀请码「${code}」？`)) return;
+      const cur = loadInvites();
+      saveInvites(cur.filter(x => x !== code));
+      renderAdminInvites();
+      toast('已删除');
+    });
+  });
+}
+function addInviteCode() {
+  const inp = document.getElementById('new-invite');
+  const code = inp.value.trim().toUpperCase();
+  if (!code) { toast('请输入邀请码'); return; }
+  const cur = loadInvites();
+  if (cur.includes(code)) { toast('该邀请码已存在'); return; }
+  cur.push(code);
+  saveInvites(cur);
+  inp.value = '';
+  renderAdminInvites();
+  toast('邀请码已添加');
 }
 
 /* ===================== MQTT ===================== */
@@ -1080,6 +1396,25 @@ function bindEvents() {
   document.getElementById('logout-btn').addEventListener('click', e => {
     e.stopPropagation();
     logout();
+  });
+
+  // Admin panel
+  document.getElementById('admin-btn').addEventListener('click', openAdminPanel);
+  document.getElementById('admin-close').addEventListener('click', closeAdminPanel);
+  document.querySelectorAll('.admin-tab').forEach(b => {
+    b.addEventListener('click', () => switchAdminTab(b.dataset.tab));
+  });
+  document.getElementById('add-invite-btn').addEventListener('click', addInviteCode);
+  document.getElementById('new-invite').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addInviteCode();
+  });
+  document.getElementById('reset-cancel').addEventListener('click', () => {
+    document.getElementById('reset-modal').classList.remove('show');
+    adminResetUser = null;
+  });
+  document.getElementById('reset-confirm').addEventListener('click', confirmReset);
+  document.getElementById('reset-pass').addEventListener('keydown', e => {
+    if (e.key === 'Enter') confirmReset();
   });
 
   // Close modal on overlay click
