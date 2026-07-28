@@ -575,6 +575,7 @@
     <h2>管理后台</h2>
     <div class="admin-tabs">
       <button class="admin-tab active" data-tab="users">用户管理</button>
+      <button class="admin-tab" data-tab="groups">群聊管理</button>
       <button class="admin-tab" data-tab="invites">邀请码管理</button>
     </div>
     <div id="admin-tab-users" class="admin-pane">
@@ -587,6 +588,24 @@
           <th>用户名</th><th>昵称</th><th>角色</th><th>注册时间</th><th style="width:200px;">操作</th>
         </tr></thead>
         <tbody id="user-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div id="admin-tab-groups" class="admin-pane" style="display:none;">
+      <div class="admin-stats">
+        <span>共 <b id="stat-groups">0</b> 个群聊</span>
+        <div style="flex:1"></div>
+        <div class="invite-add-row">
+          <input type="text" id="new-group-code" placeholder="用加入码导入群聊" maxlength="20">
+          <button class="btn btn-primary" id="import-group-btn" style="padding:8px 14px;font-size:13px;">导入</button>
+        </div>
+      </div>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+        <thead><tr>
+          <th>图标</th><th>群聊名称</th><th>加入码</th><th>消息数</th><th>创建时间</th><th style="width:260px;">操作</th>
+        </tr></thead>
+        <tbody id="group-tbody"></tbody>
         </table>
       </div>
     </div>
@@ -632,6 +651,31 @@
   </div>
 </div>
 
+<!-- Edit Group Modal -->
+<div class="modal-overlay" id="edit-group-modal">
+  <div class="modal">
+    <h2>编辑群聊</h2>
+    <div class="field">
+      <label>群聊名称</label>
+      <input type="text" id="eg-name" placeholder="群聊名称" maxlength="30">
+    </div>
+    <div class="field">
+      <label>加入码</label>
+      <input type="text" id="eg-code" placeholder="加入码" maxlength="20">
+      <div class="field-hint">修改加入码后，所有用户需用新加入码重新加入</div>
+    </div>
+    <div class="field">
+      <label>群图标</label>
+      <div class="icon-picker" id="eg-icon-picker"></div>
+    </div>
+    <div class="field-hint" id="eg-error" style="color:var(--danger);margin-bottom:12px;min-height:14px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="eg-cancel">取消</button>
+      <button class="btn btn-primary" id="eg-save">保存</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -640,6 +684,7 @@ const STORAGE_KEY = 'chatroom.state.v1';
 const ACCOUNTS_KEY = 'chatroom.accounts.v1';
 const SESSION_KEY = 'chatroom.session.v1';
 const INVITES_KEY = 'chatroom.invites.v1';
+const GROUPS_REGISTRY_KEY = 'chatroom.groups.v1';
 const DEFAULT_INVITES = ['CHAT2026', 'WELCOME123', 'CHATIO666', 'VIP8888', 'HELLO999'];
 const ICONS = ['💬','🔥','🌟','🎮','🎵','📚','💻','⚽','🍕','🐱','🌈','🚀','☕','🎨','🏆','🌙','🎬','📷','🎲','🌮','🦊','🌸','⚡','☕'];
 const BROKER_URL = 'wss://broker.emqx.io:8084/mqtt';
@@ -709,6 +754,23 @@ function loadInvites() {
 }
 function saveInvites(list) {
   localStorage.setItem(INVITES_KEY, JSON.stringify(list));
+}
+function loadGroupRegistry() {
+  try {
+    const raw = localStorage.getItem(GROUPS_REGISTRY_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  return {};
+}
+function saveGroupRegistry(reg) {
+  localStorage.setItem(GROUPS_REGISTRY_KEY, JSON.stringify(reg));
+}
+function registerGroup(g) {
+  const reg = loadGroupRegistry();
+  if (!reg[g.code]) {
+    reg[g.code] = { name: g.name, icon: g.icon, code: g.code, createdAt: g.created || Date.now() };
+    saveGroupRegistry(reg);
+  }
 }
 function getSession() {
   try { return localStorage.getItem(SESSION_KEY) || ''; } catch(e) { return ''; }
@@ -824,6 +886,7 @@ function openAdminPanel() {
   document.getElementById('admin-modal').classList.add('show');
   switchAdminTab('users');
   renderAdminUsers();
+  renderAdminGroups();
   renderAdminInvites();
 }
 function closeAdminPanel() {
@@ -834,6 +897,7 @@ function switchAdminTab(tab) {
     b.classList.toggle('active', b.dataset.tab === tab);
   });
   document.getElementById('admin-tab-users').style.display = tab === 'users' ? '' : 'none';
+  document.getElementById('admin-tab-groups').style.display = tab === 'groups' ? '' : 'none';
   document.getElementById('admin-tab-invites').style.display = tab === 'invites' ? '' : 'none';
 }
 function formatDate(ts) {
@@ -948,6 +1012,185 @@ function addInviteCode() {
   inp.value = '';
   renderAdminInvites();
   toast('邀请码已添加');
+}
+
+/* =============== Admin: Group Management =============== */
+let editingGroupCode = null;
+let editGroupIcon = null;
+
+function renderAdminGroups() {
+  const reg = loadGroupRegistry();
+  // Merge with local state groups (for message count & name overrides)
+  const all = new Map();
+  Object.values(reg).forEach(g => all.set(g.code, { ...g }));
+  state.groups.forEach(g => {
+    const cur = all.get(g.code) || { code: g.code, createdAt: g.created, name: g.name, icon: g.icon };
+    cur.name = g.name || cur.name;
+    cur.icon = g.icon || cur.icon;
+    cur.localId = g.id;
+    cur.msgCount = (g.messages || []).length;
+    all.set(g.code, cur);
+  });
+  const entries = Array.from(all.values()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  document.getElementById('stat-groups').textContent = entries.length;
+  const tbody = document.getElementById('group-tbody');
+  tbody.innerHTML = entries.map(g => {
+    const inMyChat = !!g.localId;
+    const actions = [];
+    actions.push(`<button class="mini-btn primary" data-editgroup="${escapeHtml(g.code)}">编辑</button>`);
+    actions.push(`<button class="mini-btn" data-clearmsg="${escapeHtml(g.code)}">清消息</button>`);
+    if (!inMyChat) {
+      actions.push(`<button class="mini-btn primary" data-join="${escapeHtml(g.code)}">加入</button>`);
+    }
+    actions.push(`<button class="mini-btn danger" data-delgroup="${escapeHtml(g.code)}">删除</button>`);
+    return `<tr>
+      <td style="font-size:22px;">${escapeHtml(g.icon || '💬')}</td>
+      <td>${escapeHtml(g.name || '-')}</td>
+      <td><code style="background:var(--panel2);padding:2px 6px;border-radius:4px;font-size:12px;">${escapeHtml(g.code)}</code></td>
+      <td>${g.msgCount != null ? g.msgCount : '-'}</td>
+      <td>${formatDate(g.createdAt)}</td>
+      <td><div class="row-actions">${actions.join('')}</div></td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px;">暂无群聊</td></tr>`;
+
+  tbody.querySelectorAll('[data-editgroup]').forEach(b => b.addEventListener('click', () => openEditGroup(b.dataset.editgroup)));
+  tbody.querySelectorAll('[data-clearmsg]').forEach(b => b.addEventListener('click', () => clearGroupMessages(b.dataset.clearmsg)));
+  tbody.querySelectorAll('[data-delgroup]').forEach(b => b.addEventListener('click', () => deleteGroup(b.dataset.delgroup)));
+  tbody.querySelectorAll('[data-join]').forEach(b => b.addEventListener('click', () => {
+    closeAdminPanel();
+    joinGroup(b.dataset.join);
+  }));
+}
+function openEditGroup(code) {
+  const reg = loadGroupRegistry();
+  const g = reg[code];
+  const local = state.groups.find(x => x.code === code);
+  if (!g && !local) { toast('群聊不存在'); return; }
+  editingGroupCode = code;
+  editGroupIcon = (g && g.icon) || (local && local.icon) || '💬';
+  document.getElementById('eg-name').value = (g && g.name) || (local && local.name) || '';
+  document.getElementById('eg-code').value = code;
+  document.getElementById('eg-error').textContent = '';
+  const picker = document.getElementById('eg-icon-picker');
+  picker.innerHTML = ICONS.map(ic =>
+    `<button type="button" data-icon="${ic}" class="${ic===editGroupIcon?'active':''}" style="aspect-ratio:1;border-radius:8px;font-size:20px;background:var(--panel2);border:1px solid var(--border);">${ic}</button>`
+  ).join('');
+  picker.querySelectorAll('button').forEach(b => {
+    b.addEventListener('click', () => {
+      editGroupIcon = b.dataset.icon;
+      picker.querySelectorAll('button').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+    });
+  });
+  document.getElementById('edit-group-modal').classList.add('show');
+}
+function saveEditGroup() {
+  if (!editingGroupCode) return;
+  const name = document.getElementById('eg-name').value.trim();
+  const newCode = document.getElementById('eg-code').value.trim().toUpperCase();
+  const err = document.getElementById('eg-error');
+  err.textContent = '';
+  if (!name) { err.textContent = '请输入群聊名称'; return; }
+  if (!newCode) { err.textContent = '请输入加入码'; return; }
+  const oldCode = editingGroupCode;
+  const reg = loadGroupRegistry();
+  if (newCode !== oldCode && reg[newCode]) { err.textContent = '该加入码已被其他群使用'; return; }
+
+  // Update registry
+  const oldEntry = reg[oldCode] || {};
+  if (newCode !== oldCode) delete reg[oldCode];
+  reg[newCode] = {
+    name, code: newCode, icon: editGroupIcon,
+    createdAt: oldEntry.createdAt || Date.now()
+  };
+  saveGroupRegistry(reg);
+
+  // Update local state groups
+  state.groups.forEach(g => {
+    if (g.code === oldCode) {
+      g.name = name;
+      g.icon = editGroupIcon;
+      g.code = newCode;
+    }
+  });
+  saveState();
+
+  // MQTT: resubscribe if code changed
+  if (newCode !== oldCode && client && client.connected) {
+    try { client.unsubscribe(TOPIC_PREFIX + oldCode); } catch(e) {}
+    client.subscribe(TOPIC_PREFIX + newCode, { qos: 0 });
+  }
+
+  // If currently viewing this group, refresh header
+  if (activeGroupId) {
+    const cur = state.groups.find(x => x.id === activeGroupId);
+    if (cur && (cur.code === oldCode || cur.code === newCode)) {
+      renderChatHeader(cur);
+    }
+  }
+
+  document.getElementById('edit-group-modal').classList.remove('show');
+  editingGroupCode = null;
+  renderGroupList();
+  renderAdminGroups();
+  toast('群聊已更新');
+}
+function clearGroupMessages(code) {
+  if (!confirm(`确定清空群聊「${code}」的所有消息？此操作不可恢复`)) return;
+  const reg = loadGroupRegistry();
+  if (!reg[code] && !state.groups.find(g => g.code === code)) { toast('群聊不存在'); return; }
+  state.groups.forEach(g => {
+    if (g.code === code) g.messages = [];
+  });
+  saveState();
+  if (activeGroupId) {
+    const cur = state.groups.find(x => x.id === activeGroupId);
+    if (cur && cur.code === code) renderMessages();
+  }
+  renderAdminGroups();
+  toast('消息已清空');
+}
+function deleteGroup(code) {
+  if (!confirm(`确定从管理员删除群聊「${code}」？\n（该群聊的加入码会被移除，其他用户无法再加入；已加入的用户本地记录不受影响）`)) return;
+  const reg = loadGroupRegistry();
+  delete reg[code];
+  saveGroupRegistry(reg);
+  // MQTT unsubscribe if current user is member
+  const local = state.groups.find(g => g.code === code);
+  if (local) {
+    if (client && client.connected) {
+      try { client.unsubscribe(TOPIC_PREFIX + code); } catch(e) {}
+    }
+    if (activeGroupId === local.id) {
+      activeGroupId = null;
+      document.getElementById('chat-area').innerHTML = `
+        <div id="welcome-screen">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <h2>选择一个群聊开始聊天</h2>
+          <p>点击左上角 + 创建或加入群聊</p>
+        </div>`;
+    }
+    state.groups = state.groups.filter(x => x.id !== local.id);
+    saveState();
+    renderGroupList();
+  }
+  renderAdminGroups();
+  toast('群聊已删除');
+}
+function importGroupByCode() {
+  const inp = document.getElementById('new-group-code');
+  const code = inp.value.trim().toUpperCase();
+  if (!code) { toast('请输入加入码'); return; }
+  const reg = loadGroupRegistry();
+  if (!reg[code]) {
+    // Still allow registering it as new placeholder
+    if (!confirm('该加入码尚未登记，是否作为新群聊注册到管理列表？')) return;
+    reg[code] = { name: '群聊 ' + code, icon: '💬', code, createdAt: Date.now() };
+    saveGroupRegistry(reg);
+  }
+  inp.value = '';
+  renderAdminGroups();
+  toast('已导入/注册到管理列表');
 }
 
 /* ===================== MQTT ===================== */
@@ -1187,6 +1430,7 @@ function createGroup(name, code, icon) {
   };
   state.groups.push(group);
   saveState();
+  registerGroup(group);
   joinGroupTopic(code);
   renderGroupList();
   openChat(group.id);
@@ -1200,15 +1444,20 @@ function joinGroup(code) {
     toast('已在该群聊中');
     return;
   }
+  // Look up registry for known group info
+  const reg = loadGroupRegistry();
+  const known = reg[code];
   const group = {
     id: 'g_' + Math.random().toString(36).slice(2, 10),
-    name: '群聊 ' + code,
-    code, icon: '💬',
-    created: Date.now(),
+    name: known ? known.name : '群聊 ' + code,
+    code,
+    icon: known ? known.icon : '💬',
+    created: known ? known.createdAt : Date.now(),
     messages: []
   };
   state.groups.push(group);
   saveState();
+  registerGroup(group);
   joinGroupTopic(code);
   renderGroupList();
   openChat(group.id);
@@ -1415,6 +1664,22 @@ function bindEvents() {
   document.getElementById('reset-confirm').addEventListener('click', confirmReset);
   document.getElementById('reset-pass').addEventListener('keydown', e => {
     if (e.key === 'Enter') confirmReset();
+  });
+
+  // Group management (admin)
+  document.getElementById('import-group-btn').addEventListener('click', importGroupByCode);
+  document.getElementById('new-group-code').addEventListener('keydown', e => {
+    if (e.key === 'Enter') importGroupByCode();
+  });
+  document.getElementById('eg-cancel').addEventListener('click', () => {
+    document.getElementById('edit-group-modal').classList.remove('show');
+    editingGroupCode = null;
+  });
+  document.getElementById('eg-save').addEventListener('click', saveEditGroup);
+  ['eg-name','eg-code'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', e => {
+      if (e.key === 'Enter') saveEditGroup();
+    });
   });
 
   // Close modal on overlay click
