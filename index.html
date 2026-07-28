@@ -8,63 +8,33 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --bg: #eef2ff;
+    --bg: #ffffff;
     /* Liquid glass: ultra-transparent panels */
     --panel: rgba(255,255,255,0.18);
     --panel2: rgba(255,255,255,0.10);
     --panel-solid: #ffffff;
-    --border: rgba(255,255,255,0.45);
-    --border-strong: rgba(255,255,255,0.65);
+    --border: rgba(26,26,46,0.10);
+    --border-strong: rgba(26,26,46,0.18);
     --text: #1a1a2e;
     --muted: rgba(26,26,46,0.55);
     --accent: #6366f1;
     --bubble-me: rgba(99,102,241,0.55);
-    --bubble-other: rgba(255,255,255,0.30);
+    --bubble-other: rgba(255,255,255,0.55);
     --danger: #ef4444;
     --glass-blur: 30px;
     --glass-saturate: 200%;
     --glass-shadow: 0 8px 32px rgba(31,38,135,0.12);
-    --glass-highlight: inset 0 1px 1px rgba(255,255,255,0.7), inset 0 -1px 1px rgba(255,255,255,0.25);
-    --glass-edge: linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.1) 40%, rgba(255,255,255,0.05) 60%, rgba(255,255,255,0.6) 100%);
+    --glass-highlight: inset 0 1px 1px rgba(255,255,255,0.9), inset 0 -1px 1px rgba(31,38,135,0.06);
+    --glass-edge: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.3) 40%, rgba(255,255,255,0.2) 60%, rgba(255,255,255,0.8) 100%);
   }
   html, body { height: 100%; }
   body {
-    background: var(--bg);
+    background: #ffffff;
     color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
       "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
     overflow: hidden;
     position: relative;
-  }
-  /* Liquid glass: vivid animated colorful aurora background */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: -25%;
-    z-index: -2;
-    background:
-      radial-gradient(circle at 18% 22%, rgba(99,102,241,0.75) 0%, transparent 45%),
-      radial-gradient(circle at 82% 18%, rgba(236,72,153,0.65) 0%, transparent 45%),
-      radial-gradient(circle at 75% 78%, rgba(56,189,248,0.7) 0%, transparent 45%),
-      radial-gradient(circle at 25% 80%, rgba(168,85,247,0.65) 0%, transparent 45%),
-      radial-gradient(circle at 50% 50%, rgba(34,197,94,0.35) 0%, transparent 50%);
-    filter: blur(50px);
-    animation: aurora 18s ease-in-out infinite alternate;
-  }
-  body::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    background:
-      linear-gradient(135deg, rgba(255,255,255,0.20), rgba(255,255,255,0.02)),
-      radial-gradient(circle at 30% 10%, rgba(255,255,255,0.18), transparent 40%);
-  }
-  @keyframes aurora {
-    0%   { transform: translate(0,0) rotate(0deg) scale(1); }
-    33%  { transform: translate(4%, -3%) rotate(10deg) scale(1.05); }
-    66%  { transform: translate(-3%, 4%) rotate(-8deg) scale(0.98); }
-    100% { transform: translate(-4%, -2%) rotate(6deg) scale(1.03); }
   }
   button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
   input { font-family: inherit; }
