@@ -1994,25 +1994,27 @@ function bindEvents() {
     else if (action === 'join') showJoinModal();
   });
 
-  // Auth modal
+  // Auth modal - bind buttons in CAPTURE phase so they always fire first (BEFORE any parent capture listeners run)
+  const AUTH_CAP = true;
   document.getElementById('auth-toggle').addEventListener('click', e => {
     e.stopPropagation();
     authMode = authMode === 'register' ? 'login' : 'register';
     applyAuthMode();
     document.getElementById('auth-error').textContent = '';
-  });
+  }, AUTH_CAP);
   document.getElementById('auth-submit').addEventListener('click', e => {
     e.stopPropagation();
     handleAuthSubmit();
-  });
+  }, AUTH_CAP);
   document.getElementById('fill-admin-btn').addEventListener('click', e => {
     e.stopPropagation();
     document.getElementById('auth-user').value = DEFAULT_ADMIN_USER;
     document.getElementById('auth-pass').value = DEFAULT_ADMIN_PASS;
     document.getElementById('auth-error').textContent = '';
-  });
-  // Prevent propagation from all auth modal inner interactive elements
-  document.querySelectorAll('#auth-modal input, #auth-modal label, #auth-modal .field-hint').forEach(el => {
+  }, AUTH_CAP);
+  // IMPORTANT: Only stop propagation on LEAF elements (no descendants that need click events)
+  // Do NOT add capture stopPropagation on CONTAINERS (modal-actions, .field) - blocks child events!
+  document.querySelectorAll('#auth-modal input, #auth-modal .field-hint, #auth-modal .remember-row, #auth-modal label').forEach(el => {
     el.addEventListener('click', e => e.stopPropagation());
   });
   ['auth-user','auth-pass','auth-nick','auth-invite'].forEach(id => {
@@ -2071,11 +2073,18 @@ function bindEvents() {
 
   // Auth modal - capture phase: ONLY block clicks on the OUTSIDE overlay area (not .modal interior)
   const authOverlay = document.getElementById('auth-modal');
+  const authModalBox = authOverlay.querySelector('.modal');
   authOverlay.addEventListener('click', e => {
-    // If user is NOT logged in and clicked the raw overlay (not the .modal content or any child)
-    if (!getSession() && e.target === authOverlay) {
+    if (getSession()) return; // already logged in - allow normal behavior
+    // CRITICAL FIX: Allow any click that is INSIDE the .modal content box (any child element)
+    if (e.target === authModalBox || authModalBox.contains(e.target)) {
+      return; // let it pass through freely
+    }
+    // Only block clicks on the raw overlay background (outside the modal box)
+    if (e.target === authOverlay || !authModalBox.contains(e.target)) {
       e.preventDefault();
       e.stopPropagation();
+      e.stopImmediatePropagation();
       authOverlay.classList.add('show');
       return false;
     }
