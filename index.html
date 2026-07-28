@@ -2069,11 +2069,11 @@ function bindEvents() {
     });
   });
 
-  // Auth modal - capture phase: block ALL clicks on the auth overlay outside the .modal box (prevent any hack to close)
+  // Auth modal - capture phase: ONLY block clicks on the OUTSIDE overlay area (not .modal interior)
   const authOverlay = document.getElementById('auth-modal');
   authOverlay.addEventListener('click', e => {
-    // If user is NOT logged in, absorb the click - do not let it close
-    if (!getSession()) {
+    // If user is NOT logged in and clicked the raw overlay (not the .modal content or any child)
+    if (!getSession() && e.target === authOverlay) {
       e.preventDefault();
       e.stopPropagation();
       authOverlay.classList.add('show');
@@ -2081,7 +2081,7 @@ function bindEvents() {
     }
   }, true);
 
-  // Also block middle/right click context menu attempts
+  // Also block middle/right click context menu attempts on overlay
   authOverlay.addEventListener('contextmenu', e => {
     if (!getSession()) e.preventDefault();
   });
