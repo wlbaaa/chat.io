@@ -2051,12 +2051,29 @@ function bindEvents() {
     });
   });
 
-  // Close modal on overlay click
+  // Close modal on overlay click (EXCEPT auth modal - never closes on outside click)
   document.querySelectorAll('.modal-overlay').forEach(ov => {
     ov.addEventListener('click', e => {
-      if (e.target === ov) ov.classList.remove('show');
+      if (e.target === ov && ov.id !== 'auth-modal') ov.classList.remove('show');
     });
   });
+
+  // Lock auth modal: when user is NOT logged in, auth modal cannot be dismissed in any way
+  function isAuthed() { return !!getSession(); }
+  function lockAuthModalIfLoggedOut() {
+    const authModal = document.getElementById('auth-modal');
+    if (!isAuthed()) {
+      authModal.classList.add('show');
+      // Force visibility - ensure it's shown even if someone tries to hide it
+      requestAnimationFrame(() => {
+        if (!isAuthed()) authModal.classList.add('show');
+      });
+    }
+  }
+  // Periodic check every 500ms to ensure auth modal stays visible when logged out
+  setInterval(lockAuthModalIfLoggedOut, 500);
+  // Run immediately on bind
+  lockAuthModalIfLoggedOut();
 
   // Back button on mobile (chat header) - optional
   window.addEventListener('resize', () => {});
