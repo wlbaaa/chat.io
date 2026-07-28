@@ -285,10 +285,10 @@
   }
   .chat-header .back-btn:hover {
     background: rgba(255,255,255,0.22);
-    transform: translateX(-1px);
+    transform: translateX(-2px);
   }
   body.dark-theme .chat-header .back-btn:hover { background: rgba(255,255,255,0.10); }
-  .chat-header .back-btn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+  .chat-header .back-btn { font-size: 22px; font-weight: 600; font-family: sans-serif; line-height: 1; }
   .chat-header .group-avatar { width: 38px; height: 38px; font-size: 19px; flex-shrink: 0; }
   .chat-header .info { flex: 1; min-width: 0; }
   .chat-header .name { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1912,13 +1912,9 @@ function renderChatHeader(g) {
   if (document.getElementById('welcome-screen')) {
     area.innerHTML = `
       <div class="chat-header">
-        <button type="button" class="back-btn" id="back-btn" title="返回">
-          <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg>
-        </button>
-        <div class="group-avatar">${g.icon}</div>
+        <button type="button" class="back-btn" id="back-btn" title="返回">&lt;</button>
         <div class="info">
           <div class="name">${escapeHtml(g.name)}</div>
-          <div class="sub">加入码：<span id="code-display">${escapeHtml(g.code)}</span></div>
         </div>
         <div class="conn-dot ${client&&client.connected?'':'off'}" title="${client&&client.connected?'已连接':'未连接'}"></div>
       </div>
@@ -1943,13 +1939,12 @@ function renderChatHeader(g) {
       newBtn.className = 'back-btn';
       newBtn.id = 'back-btn';
       newBtn.title = '返回';
-      newBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>';
+      newBtn.textContent = '\u003C';
       newBtn.addEventListener('click', backToGroupList);
       hdr.insertBefore(newBtn, hdr.firstChild);
     }
-    hdr.querySelector('.group-avatar').textContent = g.icon;
+    hdr.querySelector('.back-btn').textContent = '\u003C';
     hdr.querySelector('.name').textContent = g.name;
-    document.getElementById('code-display').textContent = g.code;
     // Update conn dot if exists
     const dot = hdr.querySelector('.conn-dot');
     if (dot) {
