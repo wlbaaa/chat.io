@@ -1161,6 +1161,8 @@ function showAuthModal() {
   setTimeout(() => document.getElementById('auth-user').focus(), 50);
 }
 function hideAuthModal() {
+  // NEVER hide auth modal if user is not logged in
+  if (!getSession()) return;
   document.getElementById('auth-modal').classList.remove('show');
 }
 function applyAuthMode() {
@@ -2058,6 +2060,23 @@ function bindEvents() {
     });
   });
 
+  // Auth modal - capture phase: block ALL clicks on the auth overlay outside the .modal box (prevent any hack to close)
+  const authOverlay = document.getElementById('auth-modal');
+  authOverlay.addEventListener('click', e => {
+    // If user is NOT logged in, absorb the click - do not let it close
+    if (!getSession()) {
+      e.preventDefault();
+      e.stopPropagation();
+      authOverlay.classList.add('show');
+      return false;
+    }
+  }, true);
+
+  // Also block middle/right click context menu attempts
+  authOverlay.addEventListener('contextmenu', e => {
+    if (!getSession()) e.preventDefault();
+  });
+
   // Lock auth modal: when user is NOT logged in, auth modal cannot be dismissed in any way
   function isAuthed() { return !!getSession(); }
   function lockAuthModalIfLoggedOut() {
@@ -2070,8 +2089,8 @@ function bindEvents() {
       });
     }
   }
-  // Periodic check every 500ms to ensure auth modal stays visible when logged out
-  setInterval(lockAuthModalIfLoggedOut, 500);
+  // Periodic check every 300ms to ensure auth modal stays visible when logged out
+  setInterval(lockAuthModalIfLoggedOut, 300);
   // Run immediately on bind
   lockAuthModalIfLoggedOut();
 
