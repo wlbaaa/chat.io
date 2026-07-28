@@ -415,6 +415,55 @@
   }
   .role-tag.admin { background: #1e3a8a; color: #dbeafe; }
   .role-tag.user { background: #2a2a2a; color: var(--muted); }
+
+  /* Login hint */
+  .login-hint {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    font-size: 13px;
+  }
+  .login-hint .hint-title {
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text);
+  }
+  .login-hint .hint-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+    color: var(--muted);
+  }
+  .login-hint code {
+    background: #000;
+    color: #93c5fd;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: ui-monospace, monospace;
+  }
+  .login-hint .hint-fill {
+    margin-top: 8px;
+    width: 100%;
+    padding: 8px;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #000;
+    font-size: 13px;
+    font-weight: 500;
+    transition: opacity .15s;
+  }
+  .login-hint .hint-fill:hover { opacity: .85; }
+  .login-hint .hint-divider {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--border);
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+  }
   .row-actions { display: flex; gap: 6px; }
   .mini-btn {
     padding: 5px 9px;
@@ -562,6 +611,13 @@
       <input type="text" id="auth-invite" placeholder="请输入邀请码" maxlength="20">
     </div>
     <div class="field-hint" id="auth-error" style="color:var(--danger);margin-bottom:12px;min-height:14px;"></div>
+    <div id="login-hint" class="login-hint" style="display:none;">
+      <div class="hint-title">默认管理员账号</div>
+      <div class="hint-row"><span>用户名：</span><code>admin</code></div>
+      <div class="hint-row"><span>密码：</span><code>admin123</code></div>
+      <button type="button" class="hint-fill" id="fill-admin-btn">一键填充管理员账号</button>
+      <div class="hint-divider">或使用你自己注册的普通账号登录</div>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" id="auth-toggle">已有账号？登录</button>
       <button class="btn btn-primary" id="auth-submit">注册</button>
@@ -815,6 +871,7 @@ function applyAuthMode() {
   document.getElementById('auth-title').textContent = isReg ? '注册账号' : '登录';
   document.getElementById('reg-nick-field').style.display = isReg ? '' : 'none';
   document.getElementById('reg-invite-field').style.display = isReg ? '' : 'none';
+  document.getElementById('login-hint').style.display = isReg ? 'none' : '';
   document.getElementById('auth-toggle').textContent = isReg ? '已有账号？登录' : '没有账号？注册';
   document.getElementById('auth-submit').textContent = isReg ? '注册' : '登录';
 }
@@ -1635,6 +1692,11 @@ function bindEvents() {
     document.getElementById('auth-error').textContent = '';
   });
   document.getElementById('auth-submit').addEventListener('click', handleAuthSubmit);
+  document.getElementById('fill-admin-btn').addEventListener('click', () => {
+    document.getElementById('auth-user').value = DEFAULT_ADMIN_USER;
+    document.getElementById('auth-pass').value = DEFAULT_ADMIN_PASS;
+    document.getElementById('auth-error').textContent = '';
+  });
   ['auth-user','auth-pass','auth-nick','auth-invite'].forEach(id => {
     document.getElementById(id).addEventListener('keydown', e => {
       if (e.key === 'Enter') handleAuthSubmit();
