@@ -1995,16 +1995,25 @@ function bindEvents() {
   });
 
   // Auth modal
-  document.getElementById('auth-toggle').addEventListener('click', () => {
+  document.getElementById('auth-toggle').addEventListener('click', e => {
+    e.stopPropagation();
     authMode = authMode === 'register' ? 'login' : 'register';
     applyAuthMode();
     document.getElementById('auth-error').textContent = '';
   });
-  document.getElementById('auth-submit').addEventListener('click', handleAuthSubmit);
-  document.getElementById('fill-admin-btn').addEventListener('click', () => {
+  document.getElementById('auth-submit').addEventListener('click', e => {
+    e.stopPropagation();
+    handleAuthSubmit();
+  });
+  document.getElementById('fill-admin-btn').addEventListener('click', e => {
+    e.stopPropagation();
     document.getElementById('auth-user').value = DEFAULT_ADMIN_USER;
     document.getElementById('auth-pass').value = DEFAULT_ADMIN_PASS;
     document.getElementById('auth-error').textContent = '';
+  });
+  // Prevent propagation from all auth modal inner interactive elements
+  document.querySelectorAll('#auth-modal input, #auth-modal label, #auth-modal .field-hint').forEach(el => {
+    el.addEventListener('click', e => e.stopPropagation());
   });
   ['auth-user','auth-pass','auth-nick','auth-invite'].forEach(id => {
     document.getElementById(id).addEventListener('keydown', e => {
