@@ -97,22 +97,6 @@
   .menu-item:hover { background: #222; }
   .menu-item svg { width: 18px; height: 18px; stroke: var(--text); }
 
-  .sidebar-search {
-    padding: 10px 12px;
-    border-bottom: 1px solid var(--border);
-  }
-  .sidebar-search input {
-    width: 100%;
-    background: var(--panel2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 9px 12px;
-    color: var(--text);
-    font-size: 13px;
-    outline: none;
-  }
-  .sidebar-search input:focus { border-color: #333; }
-
   #group-list { flex: 1; overflow-y: auto; }
   .group-item {
     display: flex; align-items: center; gap: 12px;
@@ -395,10 +379,6 @@
       </div>
     </div>
 
-    <div class="sidebar-search">
-      <input type="text" id="search-input" placeholder="搜索群聊...">
-    </div>
-
     <div id="group-list"></div>
   </aside>
 
@@ -495,6 +475,10 @@
       <label>密码</label>
       <input type="password" id="auth-pass" placeholder="密码" maxlength="40" autocomplete="off">
     </div>
+    <div class="field" id="reg-invite-field">
+      <label>邀请码</label>
+      <input type="text" id="auth-invite" placeholder="请输入邀请码" maxlength="20">
+    </div>
     <div class="field-hint" id="auth-error" style="color:var(--danger);margin-bottom:12px;min-height:14px;"></div>
     <div class="modal-actions">
       <button class="btn btn-secondary" id="auth-toggle">已有账号？登录</button>
@@ -510,6 +494,7 @@
 const STORAGE_KEY = 'chatroom.state.v1';
 const ACCOUNTS_KEY = 'chatroom.accounts.v1';
 const SESSION_KEY = 'chatroom.session.v1';
+const INVITE_CODES = ['CHAT2026', 'WELCOME123', 'CHATIO666', 'VIP8888', 'HELLO999'];
 const ICONS = ['💬','🔥','🌟','🎮','🎵','📚','💻','⚽','🍕','🐱','🌈','🚀','☕','🎨','🏆','🌙','🎬','📷','🎲','🌮','🦊','🌸','⚡','☕'];
 const BROKER_URL = 'wss://broker.emqx.io:8084/mqtt';
 const TOPIC_PREFIX = 'trae-chatroom-v1/';
@@ -574,6 +559,7 @@ function showAuthModal() {
   document.getElementById('auth-nick').value = '';
   document.getElementById('auth-user').value = '';
   document.getElementById('auth-pass').value = '';
+  document.getElementById('auth-invite').value = '';
   document.getElementById('auth-modal').classList.add('show');
   setTimeout(() => document.getElementById('auth-user').focus(), 50);
 }
@@ -584,6 +570,7 @@ function applyAuthMode() {
   const isReg = authMode === 'register';
   document.getElementById('auth-title').textContent = isReg ? '注册账号' : '登录';
   document.getElementById('reg-nick-field').style.display = isReg ? '' : 'none';
+  document.getElementById('reg-invite-field').style.display = isReg ? '' : 'none';
   document.getElementById('auth-toggle').textContent = isReg ? '已有账号？登录' : '没有账号？注册';
   document.getElementById('auth-submit').textContent = isReg ? '注册' : '登录';
 }
@@ -598,7 +585,10 @@ function handleAuthSubmit() {
 
   if (authMode === 'register') {
     const nick = document.getElementById('auth-nick').value.trim();
+    const invite = document.getElementById('auth-invite').value.trim();
     if (!nick) { err.textContent = '请输入昵称'; return; }
+    if (!invite) { err.textContent = '请输入邀请码'; return; }
+    if (!INVITE_CODES.includes(invite)) { err.textContent = '邀请码无效'; return; }
     if (accts[user]) { err.textContent = '该用户名已被注册'; return; }
     accts[user] = { nick, pass: hashPass(pass) };
     saveAccounts(accts);
@@ -722,10 +712,7 @@ function joinGroupTopic(code) {
 /* ===================== UI: Sidebar ===================== */
 function renderGroupList() {
   const list = document.getElementById('group-list');
-  const q = (document.getElementById('search-input').value || '').trim().toLowerCase();
-  const groups = state.groups.filter(g =>
-    !q || g.name.toLowerCase().includes(q) || g.code.toLowerCase().includes(q)
-  );
+  const groups = state.groups;
 
   if (state.groups.length === 0) {
     list.innerHTML = `
@@ -1030,8 +1017,7 @@ function bindEvents() {
     showJoinModal();
   });
 
-  // Search
-  document.getElementById('search-input').addEventListener('input', renderGroupList);
+
 
   // Create modal
   document.querySelectorAll('.code-toggle button').forEach(b => {
@@ -1084,7 +1070,7 @@ function bindEvents() {
     document.getElementById('auth-error').textContent = '';
   });
   document.getElementById('auth-submit').addEventListener('click', handleAuthSubmit);
-  ['auth-user','auth-pass','auth-nick'].forEach(id => {
+  ['auth-user','auth-pass','auth-nick','auth-invite'].forEach(id => {
     document.getElementById(id).addEventListener('keydown', e => {
       if (e.key === 'Enter') handleAuthSubmit();
     });
