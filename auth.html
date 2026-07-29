@@ -385,21 +385,7 @@
       <span>记住我（下次自动登录）</span>
     </label>
 
-    <div class="field" id="reg-invite-field">
-      <label>邀请码</label>
-      <input type="text" id="auth-invite" placeholder="请输入邀请码" maxlength="20">
-      <div class="field-hint">管理员可生成邀请码</div>
-    </div>
-
     <div class="error-msg" id="auth-error"></div>
-
-    <div id="login-hint" class="login-hint" style="display:none;">
-      <div class="hint-title">默认管理员账号</div>
-      <div class="hint-row"><span>用户名：</span><code>admin</code></div>
-      <div class="hint-row"><span>密码：</span><code>admin123</code></div>
-      <button type="button" class="hint-fill" id="fill-admin-btn">一键填充管理员账号</button>
-      <div class="hint-divider">或使用你自己注册的普通账号登录</div>
-    </div>
 
     <div class="modal-actions">
       <button class="btn btn-secondary" id="auth-toggle">已有账号？登录</button>
@@ -421,10 +407,6 @@
 /* ===================== Constants ===================== */
 const ACCOUNTS_KEY = 'chatroom.accounts.v1';
 const SESSION_KEY = 'chatroom.session.v1';
-const INVITES_KEY = 'chatroom.invites.v1';
-const DEFAULT_INVITES = ['CHAT2026', 'WELCOME123', 'CHATIO666', 'VIP8888', 'HELLO999'];
-const DEFAULT_ADMIN_USER = 'admin';
-const DEFAULT_ADMIN_PASS = 'admin123';
 const REDIRECT_URL = 'index.html';
 
 let authMode = 'register'; // 'register' | 'login'
@@ -457,28 +439,10 @@ function loadAccounts() {
     const raw = localStorage.getItem(ACCOUNTS_KEY);
     if (raw) accts = JSON.parse(raw);
   } catch(e) {}
-  // Seed admin account if empty
-  if (!accts[DEFAULT_ADMIN_USER]) {
-    accts[DEFAULT_ADMIN_USER] = {
-      nick: '管理员',
-      pass: hashPass(DEFAULT_ADMIN_PASS),
-      role: 'admin',
-      createdAt: Date.now()
-    };
-    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accts));
-  }
   return accts;
 }
 function saveAccounts(accts) {
   localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accts));
-}
-function loadInvites() {
-  try {
-    const raw = localStorage.getItem(INVITES_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch(e) {}
-  localStorage.setItem(INVITES_KEY, JSON.stringify(DEFAULT_INVITES));
-  return [...DEFAULT_INVITES];
 }
 
 /* ===================== UI: mode switching ===================== */
@@ -486,8 +450,6 @@ function applyAuthMode() {
   const isReg = authMode === 'register';
   document.getElementById('auth-title').textContent = isReg ? '注册账号' : '登录';
   document.getElementById('reg-nick-field').style.display = isReg ? '' : 'none';
-  document.getElementById('reg-invite-field').style.display = isReg ? '' : 'none';
-  document.getElementById('login-hint').style.display = isReg ? 'none' : '';
   document.getElementById('auth-toggle').textContent = isReg ? '已有账号？登录' : '没有账号？注册';
   document.getElementById('auth-submit').textContent = isReg ? '注册' : '登录';
 }
@@ -528,10 +490,7 @@ function handleAuthSubmit() {
 
   if (authMode === 'register') {
     const nick = document.getElementById('auth-nick').value.trim();
-    const invite = document.getElementById('auth-invite').value.trim();
     if (!nick) { err.textContent = '请输入昵称'; return; }
-    if (!invite) { err.textContent = '请输入邀请码'; return; }
-    if (!loadInvites().includes(invite.toUpperCase())) { err.textContent = '邀请码无效'; return; }
     if (accts[user]) { err.textContent = '该用户名已被注册'; return; }
     accts[user] = { nick, pass: hashPass(pass), role: 'user', createdAt: Date.now() };
     saveAccounts(accts);
@@ -588,15 +547,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Submit
   document.getElementById('auth-submit').addEventListener('click', handleAuthSubmit);
 
-  // One-click admin fill (only visible in login mode)
-  document.getElementById('fill-admin-btn').addEventListener('click', () => {
-    document.getElementById('auth-user').value = DEFAULT_ADMIN_USER;
-    document.getElementById('auth-pass').value = DEFAULT_ADMIN_PASS;
-    document.getElementById('auth-error').textContent = '';
-  });
-
   // Enter key on all inputs = submit
-  ['auth-user', 'auth-pass', 'auth-nick', 'auth-invite'].forEach(id => {
+  ['auth-user', 'auth-pass', 'auth-nick'].forEach(id => {
     document.getElementById(id).addEventListener('keydown', e => {
       if (e.key === 'Enter') handleAuthSubmit();
     });
