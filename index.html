@@ -1156,7 +1156,7 @@ const ACCOUNTS_KEY = 'chatroom.accounts.v1';
 const SESSION_KEY = 'chatroom.session.v1';
 const INVITES_KEY = 'chatroom.invites.v1';
 const GROUPS_REGISTRY_KEY = 'chatroom.groups.v1';
-const DEFAULT_INVITES = ['CHAT2026', 'WELCOME123', 'CHATIO666', 'VIP8888', 'HELLO999'];
+const DEFAULT_INVITES = [];
 const ICONS = ['💬','🔥','🌟','🎮','🎵','📚','💻','⚽','🍕','🐱','🌈','🚀','☕','🎨','🏆','🌙','🎬','📷','🎲','🌮','🦊','🌸','⚡','☕'];
 const BROKER_URL = 'wss://broker.emqx.io:8084/mqtt';
 const TOPIC_PREFIX = 'trae-chatroom-v1/';
@@ -2139,6 +2139,30 @@ function randomCode() {
   return s;
 }
 
+/* ===================== Auto-refresh Invite Codes ===================== */
+function generateInviteCodes(count) {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const codes = [];
+  for (let c = 0; c < count; c++) {
+    let s = '';
+    for (let i = 0; i < 8; i++) s += chars[Math.floor(Math.random() * chars.length)];
+    codes.push(s);
+  }
+  return codes;
+}
+
+let inviteTimer = null;
+function autoRefreshInvites() {
+  // Clear all existing codes (used or not)
+  saveInvites(generateInviteCodes(5));
+  renderAdminInvites();
+  if (inviteTimer) clearInterval(inviteTimer);
+  inviteTimer = setInterval(() => {
+    saveInvites(generateInviteCodes(5));
+    renderAdminInvites();
+  }, 3600000);
+}
+
 /* ===================== GitHub Chat History (per-group repo) ===================== */
 // 每个群作为一个仓库目录：chat/{群名}/{用户名}/聊天记录记录.txt
 // 记录格式：{时}:{分}:{秒}:{消息内容}
@@ -2422,6 +2446,7 @@ function init() {
       renderGroupList();
       updateUserChip();
       connectMQTT();
+      autoRefreshInvites();
     } else {
       setSession(null);
       state = loadState();
