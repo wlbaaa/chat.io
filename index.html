@@ -898,7 +898,6 @@
     <div id="welcome-screen">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       <h2>选择一个群聊开始聊天</h2>
-      <p>点击左上角 + 创建或加入群聊</p>
     </div>
   </main>
 </div>
@@ -1697,7 +1696,6 @@ function deleteGroup(code) {
         <div id="welcome-screen">
           <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           <h2>选择一个群聊开始聊天</h2>
-          <p>点击左上角 + 创建或加入群聊</p>
         </div>`;
     }
     state.groups = state.groups.filter(x => x.id !== local.id);
@@ -1884,7 +1882,6 @@ function backToGroupList() {
     <div id="welcome-screen">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       <h2>选择一个群聊开始聊天</h2>
-      <p>点击左上角 + 创建或加入群聊</p>
     </div>`;
   // On mobile: sidebar should be visible (chat hidden away is fine)
   const sidebar = document.getElementById('sidebar');
@@ -2074,7 +2071,6 @@ function leaveGroup(id) {
       <div id="welcome-screen">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         <h2>选择一个群聊开始聊天</h2>
-        <p>点击左上角 + 创建或加入群聊</p>
       </div>`;
   }
   saveState();
