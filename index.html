@@ -7,6 +7,17 @@
 <script src="https://unpkg.com/mqtt@5.3.5/dist/mqtt.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  #orientation-overlay {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: #000; z-index: 999999;
+    display: none;
+    justify-content: center; align-items: center;
+    color: #fff;
+    font-size: 6vw;
+    font-family: "Microsoft YaHei", sans-serif;
+    text-align: center;
+    user-select: none;
+  }
   :root {
     --bg: transparent;
     /* Liquid glass: ultra-transparent panels on image background */
@@ -909,6 +920,7 @@
 </style>
 </head>
 <body>
+<div id="orientation-overlay">请使用横屏访问</div>
 <div id="app">
   <!-- Sidebar -->
   <aside id="sidebar">
@@ -2576,6 +2588,23 @@ function init() {
   }, 5000);
 }
 init();
+
+// 横屏检测
+(function enforceLandscape() {
+  var overlay = document.getElementById('orientation-overlay');
+  function checkOrientation() {
+    var isPortrait = window.innerHeight > window.innerWidth;
+    overlay.style.display = isPortrait ? 'flex' : 'none';
+  }
+  checkOrientation();
+  window.addEventListener('resize', checkOrientation);
+  window.addEventListener('orientationchange', function() {
+    setTimeout(checkOrientation, 200);
+  });
+  if (screen.orientation) {
+    screen.orientation.addEventListener('change', checkOrientation);
+  }
+})();
 
 // 清除所有本地缓存记录
 (function clearAllCache() {
