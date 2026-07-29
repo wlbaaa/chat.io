@@ -1038,7 +1038,6 @@
       <!-- Admin-only tabs (hidden for non-admin users) -->
       <button class="admin-tab admin-only" data-tab="users" style="display:none;">用户管理</button>
       <button class="admin-tab admin-only" data-tab="groups" style="display:none;">群聊管理</button>
-      <button class="admin-tab admin-only" data-tab="invites" style="display:none;">邀请码管理</button>
     </div>
 
     <!-- ACCOUNT TAB -->
@@ -1136,27 +1135,6 @@
         <button class="btn btn-secondary" id="settings-close-4">关闭</button>
       </div>
     </div>
-
-    <!-- INVITES TAB (admin-only) -->
-    <div id="settings-tab-invites" class="admin-pane" style="display:none;">
-      <div class="admin-stats">
-        <span>共 <b id="stat-invites">0</b> 个邀请码</span>
-        <div style="flex:1"></div>
-        <div class="invite-add-row">
-          <input type="text" id="new-invite" placeholder="输入新邀请码" maxlength="20">
-          <button class="btn btn-primary" id="add-invite-btn" style="padding:8px 14px;font-size:13px;">添加</button>
-        </div>
-      </div>
-      <div class="admin-table-wrap">
-        <table class="admin-table">
-        <thead><tr><th>邀请码</th><th style="width:120px;">操作</th></tr></thead>
-        <tbody id="invite-tbody"></tbody>
-        </table>
-      </div>
-      <div class="modal-actions" style="margin-top:18px;">
-        <button class="btn btn-secondary" id="settings-close-5">关闭</button>
-      </div>
-    </div>
   </div>
 </div>
 
@@ -1192,9 +1170,7 @@
 const STORAGE_KEY = 'chatroom.state.v1';
 const ACCOUNTS_KEY = 'chatroom.accounts.v1';
 const SESSION_KEY = 'chatroom.session.v1';
-const INVITES_KEY = 'chatroom.invites.v1';
 const GROUPS_REGISTRY_KEY = 'chatroom.groups.v1';
-const DEFAULT_INVITES = [];
 const ICONS = ['💬','🔥','🌟','🎮','🎵','📚','💻','⚽','🍕','🐱','🌈','🚀','☕','🎨','🏆','🌙','🎬','📷','🎲','🌮','🦊','🌸','⚡','☕'];
 const BROKER_URL = 'wss://broker.emqx.io:8084/mqtt';
 const TOPIC_PREFIX = 'trae-chatroom-v1/';
@@ -1263,16 +1239,6 @@ function isAdmin(user) {
     return a && a.role === 'admin';
   } catch(e) { return false; }
 }
-function loadInvites() {
-  try {
-    const raw = localStorage.getItem(INVITES_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch(e) {}
-  localStorage.setItem(INVITES_KEY, JSON.stringify(DEFAULT_INVITES));
-  return [...DEFAULT_INVITES];
-}
-function saveInvites(list) {
-  localStorage.setItem(INVITES_KEY, JSON.stringify(list));
 }
 function loadGroupRegistry() {
   try {
@@ -1427,7 +1393,6 @@ function openSettings() {
   if (isAdm) {
     renderAdminUsers();
     renderAdminGroups();
-    renderAdminInvites();
   }
 
   // Sync dark mode checkbox
@@ -1451,7 +1416,6 @@ function switchSettingsTab(tab) {
   document.getElementById('settings-tab-appearance').style.display = tab === 'appearance' ? '' : 'none';
   document.getElementById('settings-tab-users').style.display = tab === 'users' ? '' : 'none';
   document.getElementById('settings-tab-groups').style.display = tab === 'groups' ? '' : 'none';
-  document.getElementById('settings-tab-invites').style.display = tab === 'invites' ? '' : 'none';
 }
 function renderAccountInfo() {
   const sessUser = getSession();
@@ -1559,37 +1523,6 @@ function deleteUser(user) {
   saveAccounts(accts);
   renderAdminUsers();
   toast('用户已删除');
-}
-function renderAdminInvites() {
-  const list = loadInvites();
-  document.getElementById('stat-invites').textContent = list.length;
-  const tbody = document.getElementById('invite-tbody');
-  tbody.innerHTML = list.map(c => `<tr>
-    <td>${escapeHtml(c)}</td>
-    <td><div class="row-actions"><button class="mini-btn danger" data-delinvite="${escapeHtml(c)}">删除</button></div></td>
-  </tr>`).join('') || `<tr><td colspan="2" style="text-align:center;color:var(--muted);padding:30px;">暂无邀请码</td></tr>`;
-  tbody.querySelectorAll('[data-delinvite]').forEach(b => {
-    b.addEventListener('click', () => {
-      const code = b.dataset.delinvite;
-      if (!confirm(`确定删除邀请码「${code}」？`)) return;
-      const cur = loadInvites();
-      saveInvites(cur.filter(x => x !== code));
-      renderAdminInvites();
-      toast('已删除');
-    });
-  });
-}
-function addInviteCode() {
-  const inp = document.getElementById('new-invite');
-  const code = inp.value.trim().toUpperCase();
-  if (!code) { toast('请输入邀请码'); return; }
-  const cur = loadInvites();
-  if (cur.includes(code)) { toast('该邀请码已存在'); return; }
-  cur.push(code);
-  saveInvites(cur);
-  inp.value = '';
-  renderAdminInvites();
-  toast('邀请码已添加');
 }
 
 /* =============== Admin: Group Management =============== */
@@ -2190,31 +2123,7 @@ function randomCode() {
 }
 
 /* ===================== Auto-refresh Invite Codes ===================== */
-function generateInviteCodes(count) {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const codes = [];
-  for (let c = 0; c < count; c++) {
-    let s = '';
-    for (let i = 0; i < 8; i++) s += chars[Math.floor(Math.random() * chars.length)];
-    codes.push(s);
-  }
-  return codes;
-}
-
-let inviteTimer = null;
-function autoRefreshInvites() {
-  // Clear all existing codes (used or not)
-  saveInvites(generateInviteCodes(5));
-  renderAdminInvites();
-  if (inviteTimer) clearInterval(inviteTimer);
-  inviteTimer = setInterval(() => {
-    saveInvites(generateInviteCodes(5));
-    renderAdminInvites();
-  }, 3600000);
-}
-
-/* ===================== GitHub Chat History (per-group repo) ===================== */
-// 每个群作为一个仓库目录：chat/{群名}/{用户名}/聊天记录记录.txt
+/* ===================== GitHub Chat History (per-group repo) ===================== */// 每个群作为一个仓库目录：chat/{群名}/{用户名}/聊天记录记录.txt
 // 记录格式：{时}:{分}:{秒}:{消息内容}
 const GH_REPO = 'wlbaaa/chat.io';
 const GH_API = 'https://api.github.com/repos/' + GH_REPO + '/contents/';
@@ -2432,7 +2341,7 @@ function bindEvents() {
   });
 
   // Close settings buttons (all tabs have their own close buttons)
-  ['settings-close','settings-close-2','settings-close-3','settings-close-4','settings-close-5'].forEach(id => {
+  ['settings-close','settings-close-2','settings-close-3','settings-close-4'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('click', closeSettings);
   });
@@ -2440,10 +2349,6 @@ function bindEvents() {
   // Settings tabs (including admin-only tabs)
   document.querySelectorAll('#settings-tabs .admin-tab').forEach(b => {
     b.addEventListener('click', () => switchSettingsTab(b.dataset.tab));
-  });
-  document.getElementById('add-invite-btn').addEventListener('click', addInviteCode);
-  document.getElementById('new-invite').addEventListener('keydown', e => {
-    if (e.key === 'Enter') addInviteCode();
   });
   // Group management (admin)
   document.getElementById('import-group-btn').addEventListener('click', importGroupByCode);
@@ -2486,7 +2391,6 @@ function init() {
       renderGroupList();
       updateUserChip();
       connectMQTT();
-      autoRefreshInvites();
       // 从 GitHub 同步群注册表到本地
       ghFetchGroupRegistry().then(remote => {
         if (!remote || !Object.keys(remote).length) return;
@@ -2547,7 +2451,6 @@ init();
   const keys = [
     'chatroom.accounts.v1',
     'chatroom.session.v1',
-    'chatroom.invites.v1',
     'chatroom.groups.v1',
     'chatroom.theme.v1',
     'chatroom.state.v1'
