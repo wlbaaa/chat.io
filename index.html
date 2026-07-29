@@ -1160,26 +1160,6 @@
   </div>
 </div>
 
-<!-- Reset Password Modal -->
-<div class="modal-overlay" id="reset-modal">
-  <div class="modal">
-    <h2>重置密码</h2>
-    <div class="field">
-      <label>用户</label>
-      <input type="text" id="reset-user" readonly>
-    </div>
-    <div class="field">
-      <label>新密码</label>
-      <input type="text" id="reset-pass" placeholder="输入新密码" maxlength="40">
-    </div>
-    <div class="field-hint" id="reset-error" style="color:var(--danger);margin-bottom:12px;min-height:14px;"></div>
-    <div class="modal-actions">
-      <button class="btn btn-secondary" id="reset-cancel">取消</button>
-      <button class="btn btn-primary" id="reset-confirm">确定</button>
-    </div>
-  </div>
-</div>
-
 <!-- Edit Group Modal -->
 <div class="modal-overlay" id="edit-group-modal">
   <div class="modal">
@@ -1269,16 +1249,6 @@ function loadAccounts() {
     const raw = localStorage.getItem(ACCOUNTS_KEY);
     if (raw) accts = JSON.parse(raw);
   } catch(e) {}
-  // Seed admin account if empty
-  if (!accts[DEFAULT_ADMIN_USER]) {
-    accts[DEFAULT_ADMIN_USER] = {
-      nick: '管理员',
-      pass: hashPass(DEFAULT_ADMIN_PASS),
-      role: 'admin',
-      createdAt: Date.now()
-    };
-    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accts));
-  }
   return accts;
 }
 function saveAccounts(accts) {
@@ -1435,7 +1405,6 @@ function initTheme() {
 }
 
 /* ===================== Settings Modal (merged with Admin Panel) ===================== */
-let adminResetUser = null;
 let currentSettingsTab = 'account';
 
 function openSettings() {
@@ -1552,7 +1521,6 @@ function renderAdminUsers() {
       ? '<span class="role-tag admin">管理员</span>'
       : '<span class="role-tag user">用户</span>';
     const actions = [];
-    actions.push(`<button class="mini-btn primary" data-reset="${u}">重置密码</button>`);
     if (!isDefault) {
       actions.push(info.role === 'admin'
         ? `<button class="mini-btn" data-unsetadmin="${u}">取消管理</button>`
@@ -1570,7 +1538,6 @@ function renderAdminUsers() {
     </tr>`;
   }).join('') || `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:30px;">暂无用户</td></tr>`;
 
-  tbody.querySelectorAll('[data-reset]').forEach(b => b.addEventListener('click', () => openReset(b.dataset.reset)));
   tbody.querySelectorAll('[data-setadmin]').forEach(b => b.addEventListener('click', () => setRole(b.dataset.setadmin, 'admin')));
   tbody.querySelectorAll('[data-unsetadmin]').forEach(b => b.addEventListener('click', () => setRole(b.dataset.unsetadmin, 'user')));
   tbody.querySelectorAll('[data-deluser]').forEach(b => b.addEventListener('click', () => deleteUser(b.dataset.deluser)));
@@ -1592,28 +1559,6 @@ function deleteUser(user) {
   saveAccounts(accts);
   renderAdminUsers();
   toast('用户已删除');
-}
-function openReset(user) {
-  adminResetUser = user;
-  document.getElementById('reset-user').value = user;
-  document.getElementById('reset-pass').value = '';
-  document.getElementById('reset-error').textContent = '';
-  document.getElementById('reset-modal').classList.add('show');
-  setTimeout(() => document.getElementById('reset-pass').focus(), 50);
-}
-function confirmReset() {
-  if (!adminResetUser) return;
-  const p = document.getElementById('reset-pass').value;
-  const err = document.getElementById('reset-error');
-  if (!p) { err.textContent = '请输入新密码'; return; }
-  if (p.length < 4) { err.textContent = '密码至少 4 位'; return; }
-  const accts = loadAccounts();
-  if (!accts[adminResetUser]) { err.textContent = '用户不存在'; return; }
-  accts[adminResetUser].pass = hashPass(p);
-  saveAccounts(accts);
-  document.getElementById('reset-modal').classList.remove('show');
-  adminResetUser = null;
-  toast('密码已重置');
 }
 function renderAdminInvites() {
   const list = loadInvites();
@@ -2500,15 +2445,6 @@ function bindEvents() {
   document.getElementById('new-invite').addEventListener('keydown', e => {
     if (e.key === 'Enter') addInviteCode();
   });
-  document.getElementById('reset-cancel').addEventListener('click', () => {
-    document.getElementById('reset-modal').classList.remove('show');
-    adminResetUser = null;
-  });
-  document.getElementById('reset-confirm').addEventListener('click', confirmReset);
-  document.getElementById('reset-pass').addEventListener('keydown', e => {
-    if (e.key === 'Enter') confirmReset();
-  });
-
   // Group management (admin)
   document.getElementById('import-group-btn').addEventListener('click', importGroupByCode);
   document.getElementById('new-group-code').addEventListener('keydown', e => {
