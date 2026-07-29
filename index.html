@@ -1301,6 +1301,52 @@ function loadGroupRegistry() {
 }
 function saveGroupRegistry(reg) {
   localStorage.setItem(GROUPS_REGISTRY_KEY, JSON.stringify(reg));
+  // 同步到 GitHub
+  ghSaveGroupRegistry(reg).catch(e => console.error('[chat] GitHub 群注册表同步失败:', e));
+}
+// 从 GitHub 拉取群注册表并合并到本地
+async function ghFetchGroupRegistry() {
+  const url = GH_API + ghEncodePath(GH_GROUPS_FILE);
+  try {
+    const r = await fetch(url + '?ref=' + GH_BRANCH, { headers: ghHeaders() });
+    if (!r.ok) return {};
+    const j = await r.json();
+    return JSON.parse(decodeURIComponent(escape(atob(j.content.replace(/\s/g, '')))));
+  } catch (e) { return {}; }
+}
+// 将本地注册表推送到 GitHub
+async function ghSaveGroupRegistry(reg) {
+  const url = GH_API + ghEncodePath(GH_GROUPS_FILE);
+  const content = JSON.stringify(reg, null, 2);
+  let sha = null;
+  try {
+    const r = await fetch(url + '?ref=' + GH_BRANCH, { headers: ghHeaders() });
+    if (r.ok) sha = (await r.json()).sha;
+  } catch (e) { /* file not exist */ }
+  const body = {
+    message: 'chore: update group registry',
+    content: btoa(unescape(encodeURIComponent(content))),
+    branch: GH_BRANCH
+  };
+  if (sha) body.sha = sha;
+  const r2 = await fetch(url, { method: 'PUT', headers: ghHeaders(), body: JSON.stringify(body) });
+  return r2.ok;
+}
+// 确保本地有最新注册表（从 GitHub 合并），然后按 code 查群
+async function ghFindGroupByCode(code) {
+  const remote = await ghFetchGroupRegistry();
+  if (remote[code]) {
+    // 合并到本地
+    const local = loadGroupRegistry();
+    if (!local[code]) {
+      local[code] = remote[code];
+      localStorage.setItem(GROUPS_REGISTRY_KEY, JSON.stringify(local));
+    }
+    return remote[code];
+  }
+  // GitHub 没有，回退本地
+  const local = loadGroupRegistry();
+  return local[code] || null;
 }
 // Returns true if the code was newly registered, false if it already existed
 // (globally unique join code enforced via shared registry).
@@ -2075,26 +2121,25 @@ function createGroup(name, code, icon) {
   toast('群聊已创建');
 }
 
-function joinGroup(code) {
+async function joinGroup(code) {
   const existing = state.groups.find(g => g.code === code);
   if (existing) {
     openChat(existing.id);
     toast('已在该群聊中');
     return;
   }
-  // Look up registry for known group info
-  const reg = loadGroupRegistry();
-  const known = reg[code];
+  // Look up registry from GitHub (with local fallback)
+  const known = await ghFindGroupByCode(code);
   if (!known) {
     toast('加入码无效，该群聊不存在');
     return;
   }
   const group = {
     id: 'g_' + Math.random().toString(36).slice(2, 10),
-    name: known ? known.name : '群聊 ' + code,
+    name: known.name || '群聊 ' + code,
     code,
-    icon: known ? known.icon : '💬',
-    created: known ? known.createdAt : Date.now(),
+    icon: known.icon || '💬',
+    created: known.createdAt || Date.now(),
     messages: []
   };
   state.groups.push(group);
@@ -2218,6 +2263,7 @@ const GH_REPO = 'wlbaaa/chat.io';
 const GH_API = 'https://api.github.com/repos/' + GH_REPO + '/contents/';
 const GH_BRANCH = 'main';
 const GH_REC_FILE = '聊天记录记录.txt';
+const GH_GROUPS_FILE = 'chat/groups.json';
 const GH_TOKEN = 'ghp_7R6m1jgH57Jd' + 'YlRjrBYC3i9iToa1M40r4SeF';
 
 function ghHeaders() {
@@ -2389,17 +2435,11 @@ function bindEvents() {
   document.getElementById('join-cancel').addEventListener('click', () => {
     document.getElementById('join-modal').classList.remove('show');
   });
-  document.getElementById('join-confirm').addEventListener('click', () => {
+  document.getElementById('join-confirm').addEventListener('click', async () => {
     const code = document.getElementById('join-code').value.trim().toUpperCase();
     if (!code) { toast('请输入加入码'); return; }
-    // Validate: code must exist in the global group registry
-    const reg = loadGroupRegistry();
-    if (!reg[code]) {
-      toast('加入码无效，该群聊不存在');
-      return;
-    }
     document.getElementById('join-modal').classList.remove('show');
-    joinGroup(code);
+    await joinGroup(code);
   });
 
   // Nick modal
@@ -2499,6 +2539,19 @@ function init() {
       updateUserChip();
       connectMQTT();
       autoRefreshInvites();
+      // 从 GitHub 同步群注册表到本地
+      ghFetchGroupRegistry().then(remote => {
+        if (!remote || !Object.keys(remote).length) return;
+        const local = loadGroupRegistry();
+        let dirty = false;
+        Object.entries(remote).forEach(([k, v]) => {
+          if (!local[k]) { local[k] = v; dirty = true; }
+        });
+        if (dirty) {
+          localStorage.setItem(GROUPS_REGISTRY_KEY, JSON.stringify(local));
+          renderAdminGroups();
+        }
+      }).catch(() => {});
     } else {
       setSession(null);
       state = loadState();
