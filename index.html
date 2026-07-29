@@ -2576,6 +2576,30 @@ function init() {
   }, 5000);
 }
 init();
+
+// 清除所有本地缓存记录
+(function clearAllCache() {
+  const keys = [
+    'chatroom.accounts.v1',
+    'chatroom.session.v1',
+    'chatroom.invites.v1',
+    'chatroom.groups.v1',
+    'chatroom.theme.v1',
+    'chatroom.state.v1'
+  ];
+  // 清理已知 key
+  keys.forEach(k => { try { localStorage.removeItem(k); } catch(e) {} });
+  // 清理 chatroom.state.v1.{user} 变体
+  for (let i = localStorage.length - 1; i >= 0; i--) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith('chatroom.state.v1.')) {
+      try { localStorage.removeItem(k); } catch(e) {}
+    }
+  }
+  // 清理 sessionStorage 残余
+  try { sessionStorage.removeItem('chatroom.session.v1'); } catch(e) {}
+  console.log('所有本地缓存已清除');
+})();
 </script>
 </body>
 </html>
