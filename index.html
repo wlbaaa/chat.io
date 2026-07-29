@@ -2048,7 +2048,9 @@ function send() {
   const d = new Date(msg.ts);
   const pad = n => n.toString().padStart(2, '0');
   const line = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()) + ':' + msg.text;
-  ghAppendChatLine(g.name, state.nickname || getSession(), line);
+  ghAppendChatLine(g.name, state.nickname || getSession(), line).catch(err => {
+    console.error('[chat] 写入 GitHub 聊天记录失败:', err);
+  });
 }
 
 /* ===================== Groups actions ===================== */
@@ -2257,8 +2259,12 @@ async function ghAppendChatLine(groupName, userName, line) {
       headers: ghHeaders(),
       body: JSON.stringify(body)
     });
+    if (!r.ok) console.warn('[chat] ghAppendChatLine PUT 失败:', r.status, await r.text());
     return r.ok;
-  } catch (e) { return false; }
+  } catch (e) {
+    console.error('[chat] ghAppendChatLine 写入失败:', e);
+    return false;
+  }
 }
 // 读取某群全部聊天记录，返回 [{user, time, text}]
 async function ghLoadChatHistory(groupName) {
@@ -2266,19 +2272,19 @@ async function ghLoadChatHistory(groupName) {
   const out = [];
   try {
     const r = await fetch(GH_API + ghEncodePath(base) + '?ref=' + GH_BRANCH, { headers: ghHeaders() });
-    if (!r.ok) return out;
+    if (!r.ok) { console.warn('[chat] 群目录读取失败:', r.status); return out; }
     const users = await r.json();
     if (!Array.isArray(users)) return out;
     for (const u of users) {
       if (u.type !== 'dir') continue;
       const ur = await fetch(GH_API + ghEncodePath(u.path) + '?ref=' + GH_BRANCH, { headers: ghHeaders() });
-      if (!ur.ok) continue;
+      if (!ur.ok) { console.warn('[chat] 用户目录读取失败:', u.name, ur.status); continue; }
       const files = await ur.json();
       if (!Array.isArray(files)) continue;
       const rec = files.find(f => f.name === GH_REC_FILE);
       if (!rec) continue;
       const fr = await fetch(rec.url + '?ref=' + GH_BRANCH, { headers: ghHeaders() });
-      if (!fr.ok) continue;
+      if (!fr.ok) { console.warn('[chat] 记录文件读取失败:', u.name, fr.status); continue; }
       const fj = await fr.json();
       const text = decodeURIComponent(escape(atob(fj.content.replace(/\s/g, ''))));
       text.split('\n').forEach(l => {
@@ -2291,7 +2297,7 @@ async function ghLoadChatHistory(groupName) {
         out.push({ user: u.name, time, text: content });
       });
     }
-  } catch (e) { /* ignore */ }
+  } catch (e) { console.error('[chat] ghLoadChatHistory 失败:', e); }
   return out;
 }
 // 初始化群目录（创建 chat/{群名}/README.md）
