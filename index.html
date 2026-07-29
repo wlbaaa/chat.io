@@ -1002,10 +1002,6 @@
       <input type="text" id="join-code" placeholder="输入群聊加入码" maxlength="20">
       <div class="field-hint">向群主索取加入码（必须由群主先创建该群聊）</div>
     </div>
-    <div class="field">
-      <label>你的昵称</label>
-      <input type="text" id="join-nick" placeholder="输入昵称" maxlength="20">
-    </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" id="join-cancel">取消</button>
       <button class="btn btn-primary" id="join-confirm">加入</button>
@@ -1103,7 +1099,7 @@
       <div class="admin-table-wrap">
         <table class="admin-table">
         <thead><tr>
-          <th>用户名</th><th>昵称</th><th>角色</th><th>注册时间</th><th style="width:200px;">操作</th>
+          <th>用户名</th><th>角色</th><th>注册时间</th><th style="width:200px;">操作</th>
         </tr></thead>
         <tbody id="user-tbody"></tbody>
         </table>
@@ -1499,7 +1495,7 @@ function renderAdminUsers() {
       <td>${formatDate(info.createdAt)}</td>
       <td><div class="row-actions">${actions.join('')}</div></td>
     </tr>`;
-  }).join('') || `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:30px;">暂无用户</td></tr>`;
+  }).join('') || `<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:30px;">暂无用户</td></tr>`;
 
   tbody.querySelectorAll('[data-setadmin]').forEach(b => b.addEventListener('click', () => setRole(b.dataset.setadmin, 'admin')));
   tbody.querySelectorAll('[data-unsetadmin]').forEach(b => b.addEventListener('click', () => setRole(b.dataset.unsetadmin, 'user')));
