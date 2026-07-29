@@ -1216,8 +1216,7 @@ function migrateLegacyStateIfNeeded() {
 }
 
 /* ===================== Accounts / Auth ===================== */
-const DEFAULT_ADMIN_USER = 'admin';
-const DEFAULT_ADMIN_PASS = 'admin123';
+
 
 function loadAccounts() {
   let accts = {};
@@ -1480,7 +1479,7 @@ function renderAdminUsers() {
   const sess = getSession();
   tbody.innerHTML = entries.map(([u, info]) => {
     const isSelf = u === sess;
-    const isDefault = u === DEFAULT_ADMIN_USER;
+    const isDefault = false;
     const roleTag = info.role === 'admin'
       ? '<span class="role-tag admin">管理员</span>'
       : '<span class="role-tag user">用户</span>';
