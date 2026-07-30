@@ -2440,28 +2440,9 @@ init();
   }
 })();
 
-// 清除所有本地缓存记录
-(function clearAllCache() {
-  const keys = [
-    'chatroom.accounts.v1',
-    'chatroom.session.v1',
-    'chatroom.groups.v1',
-    'chatroom.theme.v1',
-    'chatroom.state.v1'
-  ];
-  // 清理已知 key
-  keys.forEach(k => { try { localStorage.removeItem(k); } catch(e) {} });
-  // 清理 chatroom.state.v1.{user} 变体
-  for (let i = localStorage.length - 1; i >= 0; i--) {
-    const k = localStorage.key(i);
-    if (k && k.startsWith('chatroom.state.v1.')) {
-      try { localStorage.removeItem(k); } catch(e) {}
-    }
-  }
-  // 清理 sessionStorage 残余
-  try { sessionStorage.removeItem('chatroom.session.v1'); } catch(e) {}
-  console.log('所有本地缓存已清除');
-})();
+// NOTE: 历史上这里有一个 clearAllCache IIFE，每次加载都清空 localStorage，
+// 导致注册后跳转 index.html 时账号被删除、刷新后 session 丢失。
+// 已移除。如需手动清空缓存，请在控制台执行 localStorage.clear()。
 </script>
 </body>
 </html>
