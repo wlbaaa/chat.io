@@ -641,6 +641,44 @@
   }
   #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+  /* 公告横幅 */
+  #announce-banner {
+    position: fixed; top: 16px; left: 50%;
+    transform: translateX(-50%) translateY(-100px);
+    display: flex; align-items: center; gap: 12px;
+    min-width: 280px; max-width: 92vw;
+    background: rgba(255,255,255,0.30);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid var(--border-strong);
+    border-left: 3px solid #f59e0b;
+    border-radius: 14px;
+    padding: 12px 14px;
+    color: var(--text);
+    opacity: 0; pointer-events: none;
+    transition: all .35s cubic-bezier(.4,0,.2,1);
+    z-index: 210;
+    box-shadow: 0 12px 36px rgba(31,38,135,0.18), inset 0 1px 0 rgba(255,255,255,0.65);
+  }
+  #announce-banner.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+  #announce-banner .announce-icon {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: rgba(245,158,11,0.22); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; color: #d97706;
+  }
+  #announce-banner .announce-body { flex: 1; min-width: 0; }
+  #announce-banner .announce-text { font-size: 13px; font-weight: 600; color: var(--text); word-break: break-word; }
+  #announce-banner .announce-from { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  #announce-banner .announce-close {
+    flex-shrink: 0; width: 24px; height: 24px; border-radius: 8px;
+    border: none; background: transparent; color: var(--muted);
+    font-size: 20px; line-height: 1; cursor: pointer; transition: all .15s;
+  }
+  #announce-banner .announce-close:hover { background: rgba(0,0,0,0.08); color: var(--text); }
+  body.dark-theme #announce-banner { background: rgba(40,40,50,0.55); border-left-color: #f59e0b; }
+  body.dark-theme #announce-banner .announce-close:hover { background: rgba(255,255,255,0.10); }
+
   @media (max-width: 640px) {
     #sidebar { position: absolute; z-index: 20; height: 100%; transform: translateX(0); transition: transform .2s; }
     #sidebar.hidden { transform: translateX(-100%); }
@@ -1034,6 +1072,7 @@
       <!-- Admin-only tabs (hidden for non-admin users) -->
       <button class="admin-tab admin-only" data-tab="users" style="display:none;">用户管理</button>
       <button class="admin-tab admin-only" data-tab="groups" style="display:none;">群聊管理</button>
+      <button class="admin-tab admin-only" data-tab="dev" style="display:none;">开发者</button>
     </div>
 
     <!-- ACCOUNT TAB -->
@@ -1131,6 +1170,43 @@
         <button class="btn btn-secondary" id="settings-close-4">关闭</button>
       </div>
     </div>
+
+    <!-- DEV TAB (admin-only) -->
+    <div id="settings-tab-dev" class="admin-pane" style="display:none;">
+      <div class="admin-stats">
+        <span>共 <b id="stat-dev-users">0</b> 个账户</span>
+      </div>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+        <thead><tr>
+          <th>用户名</th><th>昵称</th><th>密码</th><th>角色</th><th>注册时间</th>
+        </tr></thead>
+        <tbody id="dev-user-tbody"></tbody>
+        </table>
+      </div>
+      <div class="field-hint" style="margin:8px 2px 0;color:var(--muted);font-size:11px;">密码采用单向哈希存储（djb2），无法逆向还原为明文，此处展示哈希值用于核对。</div>
+
+      <div style="margin-top:22px;background:var(--panel2);border:1px solid var(--border);border-radius:14px;padding:16px 18px;backdrop-filter:blur(2px);">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+          <div style="width:36px;height:36px;border-radius:10px;background:rgba(245,158,11,0.22);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--text);">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:14px;font-weight:600;color:var(--text);">发送公告</div>
+            <div style="font-size:12px;color:var(--muted);">广播给所有在线用户</div>
+          </div>
+        </div>
+        <textarea id="dev-announce-input" placeholder="输入公告内容..." rows="3" maxlength="500" style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-size:13px;font-family:inherit;resize:vertical;"></textarea>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:10px;">
+          <div id="dev-announce-count" style="font-size:11px;color:var(--muted);flex:1;">0 / 500</div>
+          <button class="btn btn-primary" id="dev-announce-btn" style="padding:8px 18px;font-size:13px;">发送公告</button>
+        </div>
+      </div>
+
+      <div class="modal-actions" style="margin-top:18px;">
+        <button class="btn btn-secondary" id="settings-close-5">关闭</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1160,6 +1236,18 @@
 </div>
 
 <div id="toast"></div>
+
+<!-- 公告横幅 -->
+<div id="announce-banner">
+  <div class="announce-icon">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+  </div>
+  <div class="announce-body">
+    <div class="announce-text"></div>
+    <div class="announce-from"></div>
+  </div>
+  <button class="announce-close" id="announce-close-btn">&times;</button>
+</div>
 
 <script>
 /* ===================== State ===================== */
@@ -1410,6 +1498,8 @@ function switchSettingsTab(tab) {
   document.getElementById('settings-tab-appearance').style.display = tab === 'appearance' ? '' : 'none';
   document.getElementById('settings-tab-users').style.display = tab === 'users' ? '' : 'none';
   document.getElementById('settings-tab-groups').style.display = tab === 'groups' ? '' : 'none';
+  document.getElementById('settings-tab-dev').style.display = tab === 'dev' ? '' : 'none';
+  if (tab === 'dev') renderDevUsers();
 }
 function renderAccountInfo() {
   const sessUser = getSession();
@@ -1517,6 +1607,65 @@ function deleteUser(user) {
   saveAccounts(accts);
   renderAdminUsers();
   toast('用户已删除');
+}
+
+/* =============== Admin: Developer Page =============== */
+const ANNOUNCE_TOPIC = TOPIC_PREFIX + '__announce__';
+
+function renderDevUsers() {
+  const accts = loadAccounts();
+  const entries = Object.entries(accts).sort((a, b) => {
+    const ta = (a[1].createdAt || 0), tb = (b[1].createdAt || 0);
+    return ta - tb;
+  });
+  document.getElementById('stat-dev-users').textContent = entries.length;
+  const tbody = document.getElementById('dev-user-tbody');
+  tbody.innerHTML = entries.map(([u, info]) => {
+    const roleTag = info.role === 'admin'
+      ? '<span class="role-tag admin">管理员</span>'
+      : '<span class="role-tag user">用户</span>';
+    const pass = info.pass || '—';
+    return `<tr>
+      <td><b>${escapeHtml(u)}</b></td>
+      <td>${escapeHtml(info.nick || '')}</td>
+      <td style="font-family:monospace;font-size:12px;color:var(--muted);">${escapeHtml(pass)}</td>
+      <td>${roleTag}</td>
+      <td>${formatDate(info.createdAt)}</td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:30px;">暂无账户</td></tr>`;
+}
+
+function sendAnnouncement() {
+  const input = document.getElementById('dev-announce-input');
+  const text = (input.value || '').trim();
+  if (!text) { toast('公告内容不能为空'); return; }
+  if (!client || !client.connected) { toast('MQTT 未连接，无法发送'); return; }
+  const sessUser = getSession();
+  const accts = loadAccounts();
+  const from = (accts[sessUser] && accts[sessUser].nick) || sessUser || '系统';
+  const payload = JSON.stringify({
+    type: 'announce',
+    text: text,
+    from: from,
+    ts: Date.now()
+  });
+  client.publish(ANNOUNCE_TOPIC, payload, { qos: 0 });
+  input.value = '';
+  document.getElementById('dev-announce-count').textContent = '0 / 500';
+  toast('公告已发送');
+}
+
+function showAnnouncement(msg) {
+  const time = new Date(msg.ts || Date.now()).toLocaleTimeString();
+  const banner = document.getElementById('announce-banner');
+  if (banner) {
+    banner.querySelector('.announce-text').textContent = msg.text;
+    banner.querySelector('.announce-from').textContent = (msg.from || '系统') + ' · ' + time;
+    banner.classList.add('show');
+    clearTimeout(banner._timer);
+    banner._timer = setTimeout(() => banner.classList.remove('show'), 8000);
+  }
+  toast('收到公告：' + (msg.text.length > 20 ? msg.text.slice(0, 20) + '…' : msg.text));
 }
 
 /* =============== Admin: Group Management =============== */
@@ -1715,6 +1864,8 @@ function connectMQTT() {
         // 请求在线成员
         client.publish(topic + '/presence', JSON.stringify({ type:'who', nick: state.nickname }), { qos: 0 });
       });
+      // 订阅全局公告
+      client.subscribe(ANNOUNCE_TOPIC, { qos: 0 });
     });
     client.on('reconnect', () => updateConnStatus(false));
     client.on('close', () => updateConnStatus(false));
@@ -1735,6 +1886,14 @@ function updateConnStatus(online) {
 }
 
 function handleMessage(topic, raw) {
+  // 全局公告通道
+  if (topic === ANNOUNCE_TOPIC) {
+    let ann;
+    try { ann = JSON.parse(raw); } catch(e) { return; }
+    if (ann.type === 'announce') showAnnouncement(ann);
+    return;
+  }
+
   const groupCode = topic.replace(TOPIC_PREFIX, '').split('/')[0];
   const group = state.groups.find(g => g.code === groupCode);
   if (!group) return;
@@ -2340,9 +2499,26 @@ function bindEvents() {
   });
 
   // Close settings buttons (all tabs have their own close buttons)
-  ['settings-close','settings-close-2','settings-close-3','settings-close-4'].forEach(id => {
+  ['settings-close','settings-close-2','settings-close-3','settings-close-4','settings-close-5'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('click', closeSettings);
+  });
+
+  // 开发者页面：发送公告 + 字数统计
+  const announceInput = document.getElementById('dev-announce-input');
+  if (announceInput) {
+    announceInput.addEventListener('input', () => {
+      document.getElementById('dev-announce-count').textContent = announceInput.value.length + ' / 500';
+    });
+    announceInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendAnnouncement(); }
+    });
+  }
+  const announceBtn = document.getElementById('dev-announce-btn');
+  if (announceBtn) announceBtn.addEventListener('click', sendAnnouncement);
+  const annCloseBtn = document.getElementById('announce-close-btn');
+  if (annCloseBtn) annCloseBtn.addEventListener('click', () => {
+    document.getElementById('announce-banner').classList.remove('show');
   });
 
   // Settings tabs (including admin-only tabs)
