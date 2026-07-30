@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>开发者控制台 · 聊天室</title>
+<script src="https://unpkg.com/mqtt@5.3.5/dist/mqtt.min.js"></script>
+<style>
+  :root {
+    --bg: #f5f5f7;
+    --panel: rgba(255,255,255,0.55);
+    --panel2: rgba(255,255,255,0.35);
+    --text: #1a1a2e;
+    --muted: #6b7280;
+    --border: rgba(0,0,0,0.08);
+    --border-strong: rgba(0,0,0,0.14);
+    --accent: #6366f1;
+    --danger: #ef4444;
+    --warn: #f59e0b;
+  }
+  body.dark-theme {
+    --bg: #0f0f1a;
+    --panel: rgba(40,40,55,0.55);
+    --panel2: rgba(35,35,48,0.50);
+    --text: #e5e7eb;
+    --muted: #9ca3af;
+    --border: rgba(255,255,255,0.10);
+    --border-strong: rgba(255,255,255,0.18);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px;
+    transition: background .3s, color .3s;
+  }
+  .container { max-width: 900px; margin: 0 auto; }
+
+  /* 顶栏 */
+  .topbar {
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 28px;
+  }
+  .topbar .back-btn {
+    width: 42px; height: 42px; border-radius: 12px;
+    border: 1px solid var(--border); background: var(--panel);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all .2s; color: var(--text);
+    backdrop-filter: blur(8px); flex-shrink: 0;
+  }
+  .topbar .back-btn:hover { background: var(--panel2); transform: translateX(-2px); }
+  .topbar h1 { font-size: 22px; font-weight: 700; flex: 1; }
+  .topbar .conn-status {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--muted);
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 6px 12px; border-radius: 20px; backdrop-filter: blur(8px);
+  }
+  .conn-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #22c55e; box-shadow: 0 0 6px #22c55e;
+  }
+  .conn-dot.off { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
+
+  /* 卡片通用 */
+  .card {
+    background: var(--panel);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 22px 24px;
+    margin-bottom: 22px;
+    box-shadow: 0 8px 32px rgba(31,38,135,0.08);
+  }
+  .card-header {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 18px;
+  }
+  .card-icon {
+    width: 40px; height: 40px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .card-icon.users { background: rgba(99,102,241,0.20); color: var(--accent); }
+  .card-icon.announce { background: rgba(245,158,11,0.20); color: var(--warn); }
+  .card-title { font-size: 16px; font-weight: 700; }
+  .card-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .card-stat { margin-left: auto; font-size: 13px; color: var(--muted); }
+  .card-stat b { color: var(--text); font-size: 18px; }
+
+  /* 表格 */
+  .table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    text-align: left; padding: 10px 14px;
+    background: var(--panel2); color: var(--muted);
+    font-weight: 600; font-size: 12px; white-space: nowrap;
+    border-bottom: 1px solid var(--border);
+  }
+  tbody td { padding: 11px 14px; border-bottom: 1px solid var(--border); }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--panel2); }
+  .role-tag {
+    display: inline-block; padding: 3px 10px; border-radius: 20px;
+    font-size: 11px; font-weight: 600;
+  }
+  .role-tag.admin { background: rgba(124,140,255,0.25); color: #6366f1; }
+  .role-tag.user { background: rgba(148,163,184,0.20); color: var(--muted); }
+  .pass-cell { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; color: var(--muted); }
+  .hint { font-size: 11px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
+
+  /* 公告输入 */
+  textarea {
+    width: 100%; padding: 12px 14px; border-radius: 12px;
+    border: 1px solid var(--border); background: var(--panel2);
+    color: var(--text); font-size: 14px; font-family: inherit;
+    resize: vertical; outline: none; transition: border-color .2s;
+  }
+  textarea:focus { border-color: var(--accent); }
+  .announce-actions {
+    display: flex; align-items: center; gap: 12px; margin-top: 12px;
+  }
+  .char-count { font-size: 12px; color: var(--muted); flex: 1; }
+  .btn {
+    padding: 10px 22px; border-radius: 12px; border: none;
+    font-size: 14px; font-weight: 600; cursor: pointer; transition: all .2s;
+  }
+  .btn-primary {
+    background: var(--accent); color: #fff;
+    box-shadow: 0 4px 14px rgba(99,102,241,0.35);
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(99,102,241,0.45); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  /* 登录拦截 */
+  .lock-screen {
+    position: fixed; inset: 0; z-index: 999;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: var(--bg); gap: 18px; text-align: center; padding: 24px;
+  }
+  .lock-screen .lock-icon {
+    width: 64px; height: 64px; border-radius: 18px;
+    background: rgba(239,68,68,0.15); color: var(--danger);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .lock-screen h2 { font-size: 20px; }
+  .lock-screen p { color: var(--muted); font-size: 14px; max-width: 380px; }
+  .lock-screen .btn { text-decoration: none; display: inline-block; }
+
+  /* 公告横幅预览 */
+  .announce-preview {
+    margin-top: 14px; padding: 12px 14px; border-radius: 12px;
+    background: var(--panel2); border: 1px solid var(--border);
+    border-left: 3px solid var(--warn);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .announce-preview .label { font-size: 11px; color: var(--muted); font-weight: 600; }
+  .announce-preview .text { font-size: 13px; color: var(--text); }
+
+  /* toast */
+  #toast {
+    position: fixed; bottom: 30px; left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--panel); backdrop-filter: blur(12px);
+    border: 1px solid var(--border-strong); color: var(--text);
+    padding: 12px 22px; border-radius: 14px; font-size: 13px;
+    opacity: 0; pointer-events: none; transition: all .25s; z-index: 300;
+    box-shadow: 0 12px 36px rgba(31,38,135,0.18);
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  @media (max-width: 640px) {
+    body { padding: 14px; }
+    .card { padding: 16px; }
+    thead th, tbody td { padding: 8px 10px; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="topbar">
+    <button class="back-btn" id="back-btn" title="返回主页">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <h1>开发者控制台</h1>
+    <div class="conn-status">
+      <span class="conn-dot off" id="conn-dot"></span>
+      <span id="conn-text">连接中</span>
+    </div>
+  </div>
+
+  <!-- 账户查看 -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon users">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </div>
+      <div>
+        <div class="card-title">账户管理</div>
+        <div class="card-sub">查看所有注册账户</div>
+      </div>
+      <div class="card-stat">共 <b id="stat-users">0</b> 个账户</div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>用户名</th><th>昵称</th><th>密码（哈希）</th><th>角色</th><th>注册时间</th>
+        </tr></thead>
+        <tbody id="user-tbody"></tbody>
+      </table>
+    </div>
+    <div class="hint">密码采用 djb2 单向哈希算法存储，无法逆向还原为明文。此处展示哈希值用于核对身份。</div>
+  </div>
+
+  <!-- 发送公告 -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon announce">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+      </div>
+      <div>
+        <div class="card-title">发送公告</div>
+        <div class="card-sub">广播给所有在线用户</div>
+      </div>
+    </div>
+    <textarea id="announce-input" placeholder="输入公告内容..." rows="4" maxlength="500"></textarea>
+    <div class="announce-actions">
+      <div class="char-count" id="char-count">0 / 500</div>
+      <button class="btn btn-primary" id="announce-btn">发送公告</button>
+    </div>
+    <div class="announce-preview" id="announce-preview" style="display:none;">
+      <span class="label">最近发送：</span>
+      <span class="text" id="last-announce"></span>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- 非管理员拦截 -->
+<div class="lock-screen" id="lock-screen" style="display:none;">
+  <div class="lock-icon">
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+  </div>
+  <h2>无权访问</h2>
+  <p>开发者控制台仅限管理员使用。请先登录管理员账号后再访问此页面。</p>
+  <a href="index.html" class="btn btn-primary">返回主页</a>
+</div>
+
+<script>
+/* ===================== 常量 ===================== */
+const ACCOUNTS_KEY = 'chatroom.accounts.v1';
+const SESSION_KEY = 'chatroom.session.v1';
+const THEME_KEY = 'chatroom.theme.v1';
+const BROKER_URL = 'wss://broker.emqx.io:8084/mqtt';
+const TOPIC_PREFIX = 'trae-chatroom-v1/';
+const ANNOUNCE_TOPIC = TOPIC_PREFIX + '__announce__';
+
+let client = null;
+
+/* ===================== 工具 ===================== */
+function loadAccounts() {
+  try { return JSON.parse(localStorage.getItem(ACCOUNTS_KEY)) || {}; }
+  catch(e) { return {}; }
+}
+function getSession() {
+  try { return localStorage.getItem(SESSION_KEY); } catch(e) { return null; }
+}
+function isAdmin(user) {
+  if (!user) return false;
+  const accts = loadAccounts();
+  return accts[user] && accts[user].role === 'admin';
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function formatDate(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts);
+  return d.toLocaleDateString('zh-CN') + ' ' + d.toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit'});
+}
+
+/* ===================== Toast ===================== */
+let toastTimer;
+function toast(text) {
+  const t = document.getElementById('toast');
+  t.textContent = text;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+/* ===================== 主题 ===================== */
+function applyTheme() {
+  try {
+    const t = localStorage.getItem(THEME_KEY);
+    if (t === 'dark') document.body.classList.add('dark-theme');
+  } catch(e) {}
+}
+
+/* ===================== 权限检查 ===================== */
+function checkAccess() {
+  const user = getSession();
+  if (!isAdmin(user)) {
+    document.getElementById('lock-screen').style.display = 'flex';
+    document.querySelector('.container').style.display = 'none';
+    return false;
+  }
+  return true;
+}
+
+/* ===================== 渲染账户表 ===================== */
+function renderUsers() {
+  const accts = loadAccounts();
+  const entries = Object.entries(accts).sort((a, b) => {
+    return (a[1].createdAt || 0) - (b[1].createdAt || 0);
+  });
+  document.getElementById('stat-users').textContent = entries.length;
+  const tbody = document.getElementById('user-tbody');
+  tbody.innerHTML = entries.map(([u, info]) => {
+    const roleTag = info.role === 'admin'
+      ? '<span class="role-tag admin">管理员</span>'
+      : '<span class="role-tag user">用户</span>';
+    return `<tr>
+      <td><b>${escapeHtml(u)}</b></td>
+      <td>${escapeHtml(info.nick || '')}</td>
+      <td class="pass-cell">${escapeHtml(info.pass || '—')}</td>
+      <td>${roleTag}</td>
+      <td>${formatDate(info.createdAt)}</td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:30px;">暂无账户</td></tr>`;
+}
+
+/* ===================== 发送公告 ===================== */
+function sendAnnouncement() {
+  const input = document.getElementById('announce-input');
+  const text = (input.value || '').trim();
+  if (!text) { toast('公告内容不能为空'); return; }
+  if (!client || !client.connected) { toast('MQTT 未连接，请稍候'); return; }
+  const user = getSession();
+  const accts = loadAccounts();
+  const from = (accts[user] && accts[user].nick) || user || '系统';
+  const payload = JSON.stringify({ type: 'announce', text, from, ts: Date.now() });
+  client.publish(ANNOUNCE_TOPIC, payload, { qos: 0 });
+  input.value = '';
+  document.getElementById('char-count').textContent = '0 / 500';
+  // 显示最近发送
+  document.getElementById('last-announce').textContent = text;
+  document.getElementById('announce-preview').style.display = 'flex';
+  toast('公告已发送');
+}
+
+/* ===================== MQTT ===================== */
+function connectMQTT() {
+  try {
+    client = mqtt.connect(BROKER_URL, {
+      clientId: 'dev_' + Math.random().toString(16).slice(2, 10),
+      clean: true, reconnectPeriod: 3000, connectTimeout: 10000
+    });
+    client.on('connect', () => {
+      updateConn(true);
+      client.subscribe(ANNOUNCE_TOPIC, { qos: 0 });
+    });
+    client.on('reconnect', () => updateConn(false));
+    client.on('close', () => updateConn(false));
+    client.on('error', () => updateConn(false));
+    client.on('message', (topic, payload) => {
+      if (topic === ANNOUNCE_TOPIC) {
+        try {
+          const ann = JSON.parse(payload.toString());
+          if (ann.type === 'announce') {
+            toast('公告回显：' + (ann.text.length > 20 ? ann.text.slice(0, 20) + '…' : ann.text));
+          }
+        } catch(e) {}
+      }
+    });
+  } catch(e) {
+    console.error('MQTT connect failed', e);
+    updateConn(false);
+  }
+}
+function updateConn(online) {
+  document.getElementById('conn-dot').classList.toggle('off', !online);
+  document.getElementById('conn-text').textContent = online ? '已连接' : '连接中';
+}
+
+/* ===================== 事件绑定 ===================== */
+function bindEvents() {
+  document.getElementById('back-btn').addEventListener('click', () => {
+    window.location.href = 'index.html';
+  });
+  const input = document.getElementById('announce-input');
+  input.addEventListener('input', () => {
+    document.getElementById('char-count').textContent = input.value.length + ' / 500';
+  });
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendAnnouncement(); }
+  });
+  document.getElementById('announce-btn').addEventListener('click', sendAnnouncement);
+}
+
+/* ===================== 初始化 ===================== */
+applyTheme();
+if (checkAccess()) {
+  renderUsers();
+  bindEvents();
+  connectMQTT();
+}
+</script>
+</body>
+</html>
