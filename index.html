@@ -1234,7 +1234,6 @@ function isAdmin(user) {
     return a && a.role === 'admin';
   } catch(e) { return false; }
 }
-}
 function loadGroupRegistry() {
   try {
     const raw = localStorage.getItem(GROUPS_REGISTRY_KEY);
