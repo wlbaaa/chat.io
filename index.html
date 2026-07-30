@@ -2333,6 +2333,11 @@ function bindEvents() {
     e.stopPropagation();
     logout();
   });
+  // Account tab: clear all data button
+  document.getElementById('account-clear-all').addEventListener('click', e => {
+    e.stopPropagation();
+    clearAllData();
+  });
 
   // Close settings buttons (all tabs have their own close buttons)
   ['settings-close','settings-close-2','settings-close-3','settings-close-4'].forEach(id => {

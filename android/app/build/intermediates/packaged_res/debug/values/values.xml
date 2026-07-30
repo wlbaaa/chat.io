@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="accent">#6366F1</color>
+    <color name="background">#F5F6F8</color>
+    <color name="bubble_me">#6366F1</color>
+    <color name="bubble_other">#ECEEF2</color>
+    <color name="divider">#E5E7EB</color>
+    <color name="error">#EF4444</color>
+    <color name="ic_launcher_background">#6366F1</color>
+    <color name="primary">#6366F1</color>
+    <color name="primary_dark">#4F46E5</color>
+    <color name="primary_light">#E0E7FF</color>
+    <color name="surface">#FFFFFFFF</color>
+    <color name="text_hint">#9CA3AF</color>
+    <color name="text_invert">#FFFFFFFF</color>
+    <color name="text_primary">#1F2330</color>
+    <color name="text_secondary">#6B7280</color>
+    <color name="white">#FFFFFFFF</color>
+    <string name="app_name">聊天室</string>
+    <style name="Theme.ChatRoom" parent="Theme.Material3.Light.NoActionBar">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorPrimaryVariant">@color/primary_dark</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorSecondary">@color/accent</item>
+        <item name="colorOnSecondary">@color/white</item>
+        <item name="android:colorBackground">@color/background</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorError">@color/error</item>
+        <item name="android:statusBarColor">@color/primary</item>
+        <item name="android:windowBackground">@color/background</item>
+    </style>
+</resources>

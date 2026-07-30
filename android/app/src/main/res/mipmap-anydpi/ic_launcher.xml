@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 启动图标 fallback（API 24-25，adaptive icon 仅支持 API26+） -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path
+        android:fillColor="#FF6366F1"
+        android:pathData="M0,0 h48 v48 h-48 z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M24,12 C16,12 10,17 10,23 C10,25 11,27 12,29 L10,37 L18,34 C20,35 22,36 24,36 C32,36 38,31 38,23 C38,17 32,12 24,12 Z" />
+</vector>

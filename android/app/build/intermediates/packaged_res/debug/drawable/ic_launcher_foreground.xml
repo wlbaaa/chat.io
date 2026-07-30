@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 启动图标前景：一个简单的聊天气泡 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M54,28 C40,28 29,36 29,47 C29,50 30,53 32,56 L29,68 L42,64 C45,66 49,67 54,67 C68,67 79,59 79,47 C79,36 68,28 54,28 Z" />
+    <path
+        android:fillColor="#FF6366F1"
+        android:pathData="M44,44 m-2,0 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0" />
+    <path
+        android:fillColor="#FF6366F1"
+        android:pathData="M54,44 m-2,0 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0" />
+    <path
+        android:fillColor="#FF6366F1"
+        android:pathData="M64,44 m-2,0 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0" />
+</vector>
